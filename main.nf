@@ -85,10 +85,10 @@ csv_ch = Channel
 /************************** 
 * Workflows
 **************************/
-include {contig_splitter} from './workflows/contig_splitter.nf'
-//include {annotation_wf} from './workflows/annotation_wf.nf'
-//include { prokka } from './workflows/subworkflows/prokka_wf.nf' 
+include {fasta_mod_wf} from './workflows/fasta_mod_wf.nf'
+include {annotation_wf} from './workflows/annotation_wf.nf'
 //include {filter_wf} from './workflows/filter_wf.nf'
+
 
 
 /************************** 
@@ -96,7 +96,8 @@ include {contig_splitter} from './workflows/contig_splitter.nf'
 **************************/
 workflow {
 //annotation_wf(csv_ch)
-contig_splitter(csv_ch)
+fasta_mod_wf(csv_ch)
+annotation_wf(fasta_mod_ch)
 }
 
 
