@@ -7,14 +7,14 @@ include { prokka } from './workflows/subworkflows/prokka_wf.nf'
 
 workflow annotation_wf{
     take: 
-        csv_ch //val(name) path(to_fasta)
+        fasta_mod_ch // val(name), path(dir), path(contigsplit), path(noise)
 
     main: 
     //prokka
 
     //if (params.prokka_db) { prokka_db = file(params.prokka_db) }
     //    else { prokka_db = prokka_database() }
-    prokka(Path)
+    prokka(name, dir)
     //bakta
 
     //if (params.bakta_db) { bakta_db = file(params.bakta_db) }
