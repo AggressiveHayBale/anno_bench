@@ -1,7 +1,7 @@
 process prokka {
     label 'prokka'
     input: 
-        tuple val(name), path(dir)
+        tuple val(name), path(dir),  
     output: 
     	tuple val(name), path("${name}_prokka.*"), emit: prokka_ch
     script:
