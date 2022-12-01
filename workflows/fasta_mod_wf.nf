@@ -1,18 +1,16 @@
-process fasta_mod_wf {
-    label 'ubuntu'
-    input: 
-        tuple val(name), path(dir), val(contig), val(noise)
+include { fasta_mod } from './process/fasta_mod.nf' 
 
-    output: 
-        tuple val(name), path(dir), path("${name}_contigsplit.fasta"), path("${name}_noise.fasta"), emit: fasta_mod_ch
-    script: 
-    """
-        splitter.sh ${name} ${dir} ${contig}
-        noise.sh ${name} ${dir} ${noise}
-    """
-    stub:
-    """
-        touch "${name}"_contigsplit.fasta
-        touch "${name}"_noise.fasta
-    """
+workflow fasta_mod_wf{
+    take: 
+        fasta 
+    main: 
+    
+    fasta_mod(fasta)
+
+    combined_fasta_ch = fasta_mod.out.original.mix(fasta_mod.out.split).mix(fasta_mod.out.noise)
+
+    emit: 
+    combined_fasta_ch
+
+}
 

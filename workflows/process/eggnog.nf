@@ -1,4 +1,4 @@
-process eggnog_db_download {
+process eggnog_database {
     label 'eggnog'
     storeDir "${params.databases}/eggnog"
    
@@ -9,22 +9,29 @@ process eggnog_db_download {
         mkdir eggnog_db
         download_eggnog_data.py -y --data_dir eggnog_db/
         """  
+    stub:
+        """
+        touch eggnog_db
+        """
 
 }
 
-process eggnog_emapper {
+process eggnog {
     label 'eggnog'
+    errorStrategy 'ignore'
     publishDir "${params.output}/${name}/${params.eggnogdir}", mode: 'copy', pattern: "*"
     
     input:
-        tuple val(name), path(fasta)
+        tuple val(name), val(species), path(fasta), val(type)
         path(eggnog_db_dir)
     output: 
-        tuple val(name), path("${name}_eggnog*"), path("eggnog_version.txt")
+    	tuple val(name), path("${type}_${name}_eggnog.emapper.genepred.fasta"), emit: genepred_fasta
+        tuple val(name), path("${type}_${name}_eggnog.emapper.decorated.gff"), emit: gff
+        publishDir "${params.output}/${name}/eggnog", mode: 'copy' 
     script:
         """
         emapper.py -i ${fasta} \
-            --cpu 14 \
+            --cpu ${task.cpus} \
             -m diamond \
             --data_dir ${eggnog_db_dir} \
             --itype genome \
@@ -42,7 +49,12 @@ process eggnog_emapper {
             --subject_cover 20 \
             --tax_scope auto \
             --target_orthologs all \
-            -o ${name}_eggnog
-        
-        """  
+            -o ${type}_${name}_eggnog
+
+        """ 
+    stub: 
+        """
+        touch ${type}_${name}_eggnog.emapper.genepred.fasta \
+            ${type}_${name}_eggnog.emapper.decorated.gff
+        """
 }

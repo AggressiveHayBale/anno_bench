@@ -11,4 +11,4 @@ awk -v seed=$RANDOM -v noise=$noise 'BEGIN {} !/^>/ {
         position=int(rand()*length($0))+1             
         $0=substr($0,1,(position-1)) substr($0,(position+1))  
     }
-}1' $dir >  ${name}_noise.fasta
+}1' $dir >  noise_${name}.fasta
