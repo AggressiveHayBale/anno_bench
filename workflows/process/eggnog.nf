@@ -19,14 +19,12 @@ process eggnog_database {
 process eggnog {
     label 'eggnog'
     errorStrategy 'ignore'
-    publishDir "${params.output}/${name}/${params.eggnogdir}", mode: 'copy', pattern: "*"
-    
     input:
         tuple val(name), val(species), path(fasta), val(type)
         path(eggnog_db_dir)
     output: 
-    	tuple val(name), path("${type}_${name}_eggnog.emapper.genepred.fasta"), emit: genepred_fasta
-        tuple val(name), path("${type}_${name}_eggnog.emapper.decorated.gff"), emit: gff
+    	tuple val(name), val(type),val("eggnog"),path("${type}_${name}_eggnog.emapper.genepred.fasta"), path("${type}_${name}_eggnog.emapper.decorated.gff"), emit: annotation_eggnog
+//        tuple val(name), val(type), path("${type}_${name}_eggnog.emapper.decorated.gff"), emit: gff
         publishDir "${params.output}/${name}/eggnog", mode: 'copy' 
     script:
         """

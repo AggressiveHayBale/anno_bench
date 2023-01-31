@@ -28,8 +28,7 @@ process pgap {
         path(pgap_db)
 
     output: 
-        tuple val(name), path("${type}_${name}_pgap.faa"), emit: gff
-        tuple val(name), path("${type}_${name}_pgap.gbk"), emit: gbk
+        tuple val(name), val(type),val("pgap"), path("${type}_${name}_pgap.faa"), path("${type}_${name}_pgap.gff"), emit: annotation_pgap
         publishDir "${params.output}/${name}/pgap", mode: 'copy' 
     script:
         """
@@ -42,12 +41,12 @@ process pgap {
         
         cwltool /pgap/pgap/pgap.cwl --fasta ${fasta} --ignore_all_errors --report_usage --submol meta.yaml
         mv annot.faa ${type}_${name}_pgap.faa
-        mv annot.gbk ${type}_${name}_pgap.gbk
+        mv annot.gff ${type}_${name}_pgap.gff
 
         """
     stub:
         """ 
         touch ${type}_${name}_pgap.faa \
-              ${type}_${name}_pgap.gbk
+              ${type}_${name}_pgap.gff
         """
 }

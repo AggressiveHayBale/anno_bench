@@ -4,8 +4,7 @@ process prokka {
     input: 
         tuple val(name), val(species), path(fasta), val(type)
     output: 
-        tuple val(name), path("${type}_${name}_prokka.faa"), emit: faa
-        tuple val(name), path("${type}_${name}_prokka.gbk"), emit: gbk
+        tuple val(name), val(type), val("prokka"), path("${type}_${name}_prokka.faa"),path("${type}_${name}_prokka.gff"), emit: annotation_prokka
         publishDir "${params.output}/${name}/prokka", mode: 'copy' 
     script:
         """
@@ -17,11 +16,12 @@ process prokka {
             --quiet ${fasta}
 
         mv output/${type}_${name}_prokka.faa ${type}_${name}_prokka.faa
-        mv output/${type}_${name}_prokka.gbk ${type}_${name}_prokka.gbk  
+        mv output/${type}_${name}_prokka.gff ${type}_${name}_prokka.gff  
+
         """
     stub: 
         """
         touch ${type}_${name}_prokka.faa \
-            ${type}_${name}_prokka.gbk
+            ${type}_${name}_prokka.gff
         """
 }

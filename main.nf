@@ -68,7 +68,7 @@ csv_ch = Channel
 **************************/
 include {fasta_mod_wf} from './workflows/fasta_mod_wf.nf'
 include {annotation_wf} from './workflows/annotation_wf.nf'
-include {analysis} from './workflows/analysis_wf.nf'
+include {analysis_wf} from './workflows/analysis_wf.nf'
 //include {filter_wf} from './workflows/filter_wf.nf'
 
 
@@ -80,7 +80,7 @@ workflow {
 combined_fasta_ch=fasta_mod_wf(csv_ch)
 //annotation_wf(fasta_mod_wf.out.combined_fasta_ch)
 annotation_wf(combined_fasta_ch)
-analysis(annotation_wf.out.combined_annotation_ch)
+analysis_wf(annotation_wf.out.combined)
 }
 
 
