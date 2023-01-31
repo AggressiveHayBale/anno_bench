@@ -59,9 +59,12 @@ workflow analysis_wf{
     report_original=analysis_org(original_proc,'original')
     report_noise=analysis_noise(noise,'noise')
     report_split=analysis_split(split,'split')
-
-    report_original.mix(report_noise).mix(report_split).collectFile(name: 'collected_reports.csv', keepHeader: true ,storeDir: '${params.output}/final_report/')
-
+    
+    report_original.collectFile(name: 'collected_original_fasta_report.csv', keepHeader: true ,storeDir: "${params.output}/final_report/")
+    report_noise.collectFile(name: 'collected_noise_fasta_report.csv', keepHeader: true ,storeDir: "${params.output}/final_report/")
+    report_split.collectFile(name: 'collected_split_fasta_report.csv', keepHeader: true ,storeDir: "${params.output}/final_report/")
+    
+    
     emit: 
     combined
 

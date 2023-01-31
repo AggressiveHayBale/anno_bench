@@ -90,7 +90,7 @@ prokka<- annotation_merged
 annotation <- suppressMessages(read_delim(bakta_gbff,
                                           delim = "\t", escape_double = FALSE,
                                           col_names = FALSE, comment = c("#"), trim_ws = TRUE))
-fasta_data <- read_faa(prokka_faa)
+fasta_data <- read_faa(bakta_faa)
 
 
 #Cleanup
