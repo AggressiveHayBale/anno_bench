@@ -18,7 +18,6 @@ process eggnog_database {
 
 process eggnog {
     label 'eggnog'
-    errorStrategy 'ignore'
     input:
         tuple val(name), val(species), path(fasta), val(type)
         path(eggnog_db_dir)

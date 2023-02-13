@@ -1,6 +1,5 @@
 process prokka {
     label 'prokka'
-    errorStrategy 'ignore'
     input: 
         tuple val(name), val(species), path(fasta), val(type)
     output: 

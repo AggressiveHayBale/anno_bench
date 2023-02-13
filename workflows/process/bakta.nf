@@ -16,7 +16,6 @@ process bakta_database {
 
 process bakta {
     label 'bakta'
-    errorStrategy 'ignore'
     input: 
         tuple val(name), val(species), path(fasta), val(type)
         path(bakta_db_dir)

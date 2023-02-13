@@ -19,7 +19,6 @@ process pgap_database {
 
 process pgap {
     label 'pgap'
-    errorStrategy 'ignore'
     input: 
         tuple val(name), val(species), path(fasta), val(type)
         path(pgap_db)
