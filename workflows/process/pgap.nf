@@ -17,9 +17,6 @@ process pgap_database {
         
     }
 
-
-
-
 process pgap {
     label 'pgap'
     errorStrategy 'ignore'

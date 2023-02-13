@@ -71,6 +71,7 @@ annotation$product <- str_extract(annotation$X9,pattern = "product=(.*?;)")
 annotation$product <- gsub("product=", "", annotation$product)
 annotation$product <- gsub(";", "", annotation$product)
 annotation$product[annotation$product==""] <- NA
+annotation$go <- str_count(annotation$X9,"GO:")
 
 fasta_data$seq_name <- sub(" .*", "", fasta_data$seq_name )
 # Merging
@@ -102,7 +103,7 @@ annotation$product <- str_extract(annotation$X9,pattern = "Name=(.*?;)")
 annotation$product <- gsub("Name=", "", annotation$product)
 annotation$product <- gsub(";", "", annotation$product)
 annotation$product[annotation$product==""] <- NA
-
+annotation$go <- str_count(annotation$X9,"GO:")
 # Merging
 fasta_data$seq_name <- sub(" .*", "", fasta_data$seq_name )
 annotation_merged <- merge(annotation,fasta_data, by.x= "ID", by.y = "seq_name", all=TRUE)
@@ -129,6 +130,7 @@ annotation$ID <- gsub(";.*","",annotation$ID)
 annotation$product <- str_extract(annotation$X9,pattern = "product=(.*?;)") 
 annotation$product <- gsub("product=", "", annotation$product)
 annotation$product <- gsub(";", "", annotation$product)
+annotation$go <- str_count(annotation$X9,"GO:")
 
 # Merging
 fasta_data$seq_name <- sub(" .*", "", fasta_data$seq_name )
@@ -162,7 +164,27 @@ em_Preferred_name <- str_extract(annotation_merged$X9,pattern = "em_Preferred_na
 em_Preferred_name <- gsub("em_Preferred_name=", "", em_Preferred_name)
 em_Preferred_name <- gsub(";", "", em_Preferred_name)
 em_Preferred_name[em_Preferred_name==""] <- NA
+
+em_PFAMs <- str_extract(annotation_merged$X9,pattern = "em_PFAMs=(.*?;)") 
+em_PFAMs <- gsub("em_PFAMs=", "", em_PFAMs)
+em_PFAMs <- gsub(";", "", em_PFAMs)
+em_PFAMs[em_PFAMs==""] <- NA
+
+em_desc <- str_extract(annotation_merged$X9,pattern = "em_desc=(.*?;)") 
+em_desc <- gsub("em_desc=", "", em_desc)
+em_desc <- gsub(";", "", em_desc)
+em_desc[em_desc==""] <- NA
+em_desc[em_desc=="None"] <- NA
+em_desc[grep("Bacterial protein of unknown function",em_desc)] <- NA
+em_desc[grep("Protein of unknown function",em_desc)] <- NA
+em_desc[grep("Domain of unknown function",em_desc)] <- NA
+
 annotation_merged$product<- em_Preferred_name
+
+annotation_merged<- annotation_merged %>% mutate(product = coalesce(product,em_PFAMs,em_desc))
+#Functions
+annotation_merged$go <- str_count(annotation_merged$X9,"GO:")
+
 eggnog<-annotation_merged
 
 ##########
@@ -179,8 +201,8 @@ eggnog_gene_ct  <- nrow(eggnog)
 prokka_hyps <- nrow(prokka[prokka$product=="hypothetical protein",])
 bakta_hyps <- nrow(bakta[bakta$product=="hypothetical protein",])
 pgap_hyps <- nrow(pgap[pgap$product=="hypothetical protein",])
-eggnog_hyps <- nrow(pgap[pgap$product==NA,])
-#eggnog_hyps<- sum(is.na(eggnog$X8))+nrow(eggnog[eggnog$X8=="-" & eggnog$X9=="-",]) + sum(str_detect(na.omit(eggnog$X8), "unknown"))
+eggnog_hyps <- sum(is.na(eggnog$product))
+
 
 #Percent of hyps 
 prokka_perc_hyps <- (prokka_hyps/prokka_gene_ct)*100
@@ -229,25 +251,84 @@ pgap_tmrna<-ifelse(is.null(pgap_type$tmRNA),0,pgap_type$tmRNA )
 
 #Sequence 
 
-prokka_seq_lenght<-median(nchar(na.omit(prokka$sequence)))
-bakta_seq_lenght<-median((nchar(na.omit(bakta$sequence))))
-pgap_seq_lenght<-median(nchar(na.omit(pgap$sequence)))
-eggnog_seq_lenght<-median((nchar(na.omit(eggnog$sequence))))
+prokka_seq_lenght<-mean(nchar(na.omit(prokka$sequence)))
+bakta_seq_lenght<-mean((nchar(na.omit(bakta$sequence))))
+pgap_seq_lenght<-mean(nchar(na.omit(pgap$sequence)))
+eggnog_seq_lenght<-mean((nchar(na.omit(eggnog$sequence))))
+
+#Named 
+named_prokka_seq_lenght<- mean(nchar(na.omit(prokka[prokka$product!="hypothetical protein",]$sequence)))
+named_bakta_seq_lenght<-mean(nchar(na.omit(bakta[bakta$product!="hypothetical protein",]$sequence)))
+named_pgap_seq_lenght<-mean(nchar(na.omit(pgap[pgap$product!="hypothetical protein",]$sequence)))
+named_eggnog_seq_lenght<-mean(nchar(eggnog$sequence[!is.na(eggnog$product)]))
+
+#Hyp gene lenght
+hyp_prokka_seq_lenght<- mean(nchar(na.omit(prokka[prokka$product=="hypothetical protein",]$sequence)))
+hyp_bakta_seq_lenght<-mean(nchar(na.omit(bakta[bakta$product=="hypothetical protein",]$sequence)))
+hyp_pgap_seq_lenght<-mean(nchar(na.omit(pgap[pgap$product=="hypothetical protein",]$sequence)))
+hyp_eggnog_seq_lenght<-mean(nchar(eggnog$sequence[is.na(eggnog$product)]))
+
+
 
 #Sequence comparison 
 
-prokka_bakta_intersect<-length(intersect(na.omit(prokka$name),na.omit(bakta$name)))
-prokka_eggnog_intersect<-length(intersect(na.omit(prokka$name),na.omit(eggnog$name)))
-prokka_pgap_intersect<-length(intersect(na.omit(prokka$name),na.omit(pgap$name)))
+#Start comparison 
 
-bakta_eggnog_intersect<-length(intersect(na.omit(bakta$name),na.omit(eggnog$name)))
-bakta_pgap_intersect<-length(intersect(na.omit(bakta$name),na.omit(pgap$name)))
+prokka_bakta_intersect_start<-length(intersect(na.omit(prokka$X4),na.omit(bakta$X4)))
+prokka_eggnog_intersect_start<-length(intersect(na.omit(prokka$X4),na.omit(eggnog$X4)))
+prokka_pgap_intersect_start<-length(intersect(na.omit(prokka$X4),na.omit(pgap$X4)))
 
-eggnog_bakta_intersect<-length(intersect(na.omit(eggnog$name),na.omit(bakta$name)))
-eggnog_pgap_intersect<-length(intersect(na.omit(eggnog$name),na.omit(pgap$name)))
+bakta_eggnog_intersect_start<-length(intersect(na.omit(bakta$X4),na.omit(eggnog$X4)))
+bakta_pgap_intersect_start<-length(intersect(na.omit(bakta$X4),na.omit(pgap$X4)))
 
-pgap_bakta_intersect<-length(intersect(na.omit(pgap$name),na.omit(bakta$name)))
-pgap_eggnog_intersect<-length(intersect(na.omit(pgap$name),na.omit(eggnog$name)))
+eggnog_bakta_intersect_start<-length(intersect(na.omit(eggnog$X4),na.omit(bakta$X4)))
+eggnog_pgap_intersect_start<-length(intersect(na.omit(eggnog$X4),na.omit(pgap$X4)))
+
+pgap_bakta_intersect_start<-length(intersect(na.omit(pgap$X4),na.omit(bakta$X4)))
+pgap_eggnog_intersect_start<-length(intersect(na.omit(pgap$X4),na.omit(eggnog$X4)))
+
+
+#End comparison 
+
+prokka_bakta_intersect_end<-length(intersect(na.omit(prokka$X5),na.omit(bakta$X5)))
+prokka_eggnog_intersect_end<-length(intersect(na.omit(prokka$X5),na.omit(eggnog$X5)))
+prokka_pgap_intersect_end<-length(intersect(na.omit(prokka$X5),na.omit(pgap$X5)))
+
+bakta_eggnog_intersect_end<-length(intersect(na.omit(bakta$X5),na.omit(eggnog$X5)))
+bakta_pgap_intersect_end<-length(intersect(na.omit(bakta$X5),na.omit(pgap$X5)))
+
+eggnog_bakta_intersect_end<-length(intersect(na.omit(eggnog$X5),na.omit(bakta$X5)))
+eggnog_pgap_intersect_end<-length(intersect(na.omit(eggnog$X5),na.omit(pgap$X5)))
+
+pgap_bakta_intersect_end<-length(intersect(na.omit(pgap$X5),na.omit(bakta$X5)))
+pgap_eggnog_intersect_end<-length(intersect(na.omit(pgap$X5),na.omit(eggnog$X5)))
+
+
+#Functional analysis
+
+## GO annotated proteins
+prokka_go_sum<- sum(prokka$go!=0)
+bakta_go_sum<- sum(bakta$go!=0)
+eggnog_go_sum<- sum(eggnog$go!=0)
+pgap_go_sum<- sum(pgap$go!=0)
+
+## median GO terms 
+prokka_med_go<- prokka %>% filter(go!=0) %>% select(go) %>% summarize(median(go)) %>%  as.integer()
+bakta_med_go<-bakta %>% filter(go!=0) %>% select(go) %>% summarize(median(go)) %>%  as.integer()
+eggnog_med_go<-eggnog %>% filter(go!=0) %>% select(go) %>% summarize(median(go)) %>%  as.integer()
+pgap_med_go<-pgap %>% filter(go!=0) %>% select(go) %>% summarize(median(go)) %>%  as.integer()
+
+## GO annotated proteins
+prokka_go_perc<- (sum(prokka$go!=0)/nrow(prokka))*100
+bakta_go_perc<- (sum(bakta$go!=0)/nrow(bakta))*100
+eggnog_go_perc<- (sum(eggnog$go!=0)/nrow(eggnog))*100
+pgap_go_perc<- (sum(pgap$go!=0)/nrow(pgap))*100
+
+##GO in non hyps 
+prokka_go_nonhyp_perc<-(sum(prokka$go!=0)/(prokka_gene_ct-prokka_hyps))*100
+bakta_go_nonhyp_perc<- (sum(bakta$go!=0)/(bakta_gene_ct- bakta_hyps ))*100
+eggnog_go_nonhyp_perc<- (sum(eggnog$go!=0)/(eggnog_gene_ct- eggnog_hyps))*100
+pgap_go_nonhyp_perc<- (sum(pgap$go!=0)/(pgap_gene_ct-pgap_hyps))*100
 
 
 #Create summary
@@ -258,14 +339,39 @@ col_labels_CDS<- c(c("Prokka CDS","Bakta CDS","PGAP CDS"))
 col_labels_rrna<- c(c("Prokka rRNA","Bakta rRNA","PGAP rRNA"))
 col_labels_trna<- c(c("Prokka tRNA","Bakta tRNA","PGAP tRNA"))
 col_labels_tmrna<- c(c("Prokka tmRNA","Bakta tmRNA","PGAP tmRNA"))
+col_labels_prot_lenght <- c(c("Prokka total protein lenght","Bakta total protein lenght","PGAP total protein lenght","EGGnog total protein lenght"))
+col_labels_named_prot_lenght <- c(c("Prokka protein lenght","Bakta protein lenght","PGAP protein lenght","EGGnog protein lenght"))
+col_labels_hyp_prot_lenght <- c(c("Prokka hypothetical protein lenght","Bakta hypothetical protein lenght","PGAP hypothetical protein lenght","EGGnog  hypothetical protein lenght"))
+col_labels_start_end_comps <- c(c(" Prokka Bakta intersect start"," Prokka Bakta intersect end"," Prokka EGGnog intersect start"," Prokka EGGnog intersect end",
+                                  " Prokka PGAP intersect start"," Prokka PGAP intersect end"," Bakta EGGnog intersect start"," Bakta EGGnog intersect end",
+                                  " Bakta PGAP intersect start"," Bakta PGAP intersect end","EGGnog Bakta intersect start","EGGnog Bakta intersect end",
+                                  "EGGnog PGAP intersect start","EGGnog PGAP intersect end","PGAP Bakta intersect start","PGAP Bakta intersect end",
+                                  "PGAP EGGnog intersect start","PGAP EGGnog intersect end"))
+col_labels_go_sum <- c(c("Prokka at least 1 GO","Bakta at least 1 GO","EGGnog at least 1 GO","PGAP at least 1 GO"))
+col_labels_go_median <- c(c("Prokka median GO","Bakta median GO","EGGnog median GO","PGAP median GO"))
+col_labels_go_perc<-c(c("Prokka at least 1 go(%)","Bakta at least 1 go(%)","EGGnog at least 1 go(%)","PGAP at least 1 go(%)"))
+col_labels_go_nonhyp_perc<-c(c("Prokka at least 1 go in nonhypohetical genes(%)","Bakta at least 1 go in nonhypohetical genes(%)","EGGnog at least 1 go in nonhypohetical genes(%)","PGAP at least 1 go in nonhypohetical genes(%)"))
+
 summary_df<- data.frame(id, fasta_type, prokka_gene_ct,bakta_gene_ct,pgap_gene_ct,eggnog_gene_ct,
                         prokka_hyps,bakta_hyps,pgap_hyps,eggnog_hyps,
                         prokka_perc_hyps,bakta_perc_hyps,pgap_perc_hyps,eggnog_perc_hyps,
                         prokka_CDS,bakta_CDS,pgap_CDS,
                         prokka_rrna,bakta_rrna,pgap_rrna,
                         prokka_trna,bakta_trna,pgap_trna,                        
-                        prokka_tmrna,bakta_tmrna,pgap_tmrna
-                        )
-colnames(summary_df) <- c("id","type",col_labels_genecount,col_labels_hyps,col_labels_perc_hyps,col_labels_CDS,col_labels_rrna,col_labels_trna,col_labels_tmrna)
+                        prokka_tmrna,bakta_tmrna,pgap_tmrna,
+                        prokka_seq_lenght,bakta_seq_lenght,pgap_seq_lenght,eggnog_seq_lenght,
+                        named_prokka_seq_lenght,named_bakta_seq_lenght,named_pgap_seq_lenght,named_eggnog_seq_lenght,
+                        hyp_prokka_seq_lenght,hyp_bakta_seq_lenght,hyp_pgap_seq_lenght,hyp_eggnog_seq_lenght,
+                        prokka_bakta_intersect_start,prokka_bakta_intersect_end,prokka_eggnog_intersect_start,prokka_eggnog_intersect_end,
+                        prokka_pgap_intersect_start,prokka_pgap_intersect_end,bakta_eggnog_intersect_start,bakta_eggnog_intersect_end,
+                        bakta_pgap_intersect_start,bakta_pgap_intersect_end,eggnog_bakta_intersect_start,eggnog_bakta_intersect_end,
+                        eggnog_pgap_intersect_start,eggnog_pgap_intersect_end,pgap_bakta_intersect_start,pgap_bakta_intersect_end,
+                        pgap_eggnog_intersect_start,pgap_eggnog_intersect_end, 
+                        prokka_go_sum,bakta_go_sum,eggnog_go_sum,pgap_go_sum, prokka_med_go,bakta_med_go,eggnog_med_go,pgap_med_go,
+                        prokka_go_perc,bakta_go_perc,eggnog_go_perc,pgap_go_perc,prokka_go_nonhyp_perc,bakta_go_nonhyp_perc,eggnog_go_nonhyp_perc,pgap_go_nonhyp_perc)
+
+colnames(summary_df) <- c("id","type",col_labels_genecount,col_labels_hyps,col_labels_perc_hyps,col_labels_CDS,col_labels_rrna,col_labels_trna,col_labels_tmrna,
+                          col_labels_prot_lenght,col_labels_named_prot_lenght,col_labels_hyp_prot_lenght,col_labels_start_end_comps,
+                          col_labels_go_sum,col_labels_go_median,col_labels_go_perc,col_labels_go_nonhyp_perc)
 
 write_csv(summary_df,"comparison.csv")

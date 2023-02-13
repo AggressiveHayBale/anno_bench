@@ -37,8 +37,7 @@ workflow annotation_wf{
     pgap(combined_fasta_ch, pgap_db)
 
     pgap_outs = pgap.out.annotation_pgap.map { it -> [it[0],[it[1], it[2], it[3], it[4]]]}.groupTuple(by:0)
-   
-    //combined=prokka_outs.mix(bakta_outs).mix(eggnog_outs).mix(pgap_outs).transpose()
+ 
     combined=prokka_outs.join(bakta_outs).join(eggnog_outs).join(pgap_outs)
     emit: 
     combined

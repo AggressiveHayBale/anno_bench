@@ -8,6 +8,8 @@ process fasta_mod {
         tuple val(name), val(species), path("split_${name}.fasta"), val("split"), emit: split
         tuple val(name), val(species), path("noise_${name}.fasta"), val("noise"), emit: noise
     publishDir "${params.output}/${name}/fasta", mode: 'copy'
+    //Needed if one line fastas are included 
+    //bash fasta_normalisation.sh ${dir} > original_${name}.fasta
     script: 
     """ 
         cat ${dir} > original_${name}.fasta
