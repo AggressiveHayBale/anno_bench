@@ -16,6 +16,8 @@ process bakta_database {
 
 process bakta {
     label 'bakta'
+    storeDir "${params.tmp_storage}/bakta"
+    maxForks 200
     input: 
         tuple val(name), val(species), path(fasta), val(type)
         path(bakta_db_dir)

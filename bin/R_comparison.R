@@ -249,6 +249,24 @@ prokka_tmrna<-ifelse(is.null(prokka_type$tmRNA),0,pgap_type$tmRNA )
 bakta_tmrna<-ifelse(is.null(bakta_type$tmRNA),0,bakta_type$tmRNA )
 pgap_tmrna<-ifelse(is.null(pgap_type$tmRNA),0,pgap_type$tmRNA )
 
+#Start codons 
+prokka_start_codon_M <-sum(substr(prokka$sequence, 1, 1) %in% "M")
+prokka_start_codon_V <-sum(substr(prokka$sequence, 1, 1) %in% "V")
+prokka_start_codon_L <-sum(substr(prokka$sequence, 1, 1) %in% "L")
+
+bakta_start_codon_M <-sum(substr(bakta$sequence, 1, 1) %in% "M")
+bakta_start_codon_V <-sum(substr(bakta$sequence, 1, 1) %in% "V")
+bakta_start_codon_L <-sum(substr(bakta$sequence, 1, 1) %in% "L")
+
+eggnog_start_codon_M <-sum(substr(eggnog$sequence, 1, 1) %in% "M")
+eggnog_start_codon_V <-sum(substr(eggnog$sequence, 1, 1) %in% "V")
+eggnog_start_codon_L <-sum(substr(eggnog$sequence, 1, 1) %in% "L")
+
+pgap_start_codon_M <-sum(substr(pgap$sequence, 1, 1) %in% "M")
+pgap_start_codon_V <-sum(substr(pgap$sequence, 1, 1) %in% "V")
+pgap_start_codon_L <-sum(substr(pgap$sequence, 1, 1) %in% "L")
+
+
 #Sequence 
 
 prokka_seq_lenght<-mean(nchar(na.omit(prokka$sequence)))
@@ -303,6 +321,10 @@ eggnog_pgap_intersect_end<-length(intersect(na.omit(eggnog$X5),na.omit(pgap$X5))
 pgap_bakta_intersect_end<-length(intersect(na.omit(pgap$X5),na.omit(bakta$X5)))
 pgap_eggnog_intersect_end<-length(intersect(na.omit(pgap$X5),na.omit(eggnog$X5)))
 
+#Start amino acid
+
+
+
 
 #Functional analysis
 
@@ -339,6 +361,10 @@ col_labels_CDS<- c(c("Prokka CDS","Bakta CDS","PGAP CDS"))
 col_labels_rrna<- c(c("Prokka rRNA","Bakta rRNA","PGAP rRNA"))
 col_labels_trna<- c(c("Prokka tRNA","Bakta tRNA","PGAP tRNA"))
 col_labels_tmrna<- c(c("Prokka tmRNA","Bakta tmRNA","PGAP tmRNA"))
+col_labels_startcodons<- c(c("prokka_start_codon_M","prokka_start_codon_V","prokka_start_codon_L","
+                        bakta_start_codon_M","bakta_start_codon_V","bakta_start_codon_L","
+                        eggnog_start_codon_M","eggnog_start_codon_V","eggnog_start_codon_L","
+                        pgap_start_codon_M","pgap_start_codon_V","pgap_start_codon_L"))
 col_labels_prot_lenght <- c(c("Prokka total protein lenght","Bakta total protein lenght","PGAP total protein lenght","EGGnog total protein lenght"))
 col_labels_named_prot_lenght <- c(c("Prokka protein lenght","Bakta protein lenght","PGAP protein lenght","EGGnog protein lenght"))
 col_labels_hyp_prot_lenght <- c(c("Prokka hypothetical protein lenght","Bakta hypothetical protein lenght","PGAP hypothetical protein lenght","EGGnog  hypothetical protein lenght"))
@@ -359,6 +385,10 @@ summary_df<- data.frame(id, fasta_type, prokka_gene_ct,bakta_gene_ct,pgap_gene_c
                         prokka_rrna,bakta_rrna,pgap_rrna,
                         prokka_trna,bakta_trna,pgap_trna,                        
                         prokka_tmrna,bakta_tmrna,pgap_tmrna,
+                        prokka_start_codon_M,prokka_start_codon_V,prokka_start_codon_L,
+                        bakta_start_codon_M,bakta_start_codon_V,bakta_start_codon_L,
+                        eggnog_start_codon_M,eggnog_start_codon_V,eggnog_start_codon_L,
+                        pgap_start_codon_M,pgap_start_codon_V,pgap_start_codon_L,
                         prokka_seq_lenght,bakta_seq_lenght,pgap_seq_lenght,eggnog_seq_lenght,
                         named_prokka_seq_lenght,named_bakta_seq_lenght,named_pgap_seq_lenght,named_eggnog_seq_lenght,
                         hyp_prokka_seq_lenght,hyp_bakta_seq_lenght,hyp_pgap_seq_lenght,hyp_eggnog_seq_lenght,
@@ -371,7 +401,7 @@ summary_df<- data.frame(id, fasta_type, prokka_gene_ct,bakta_gene_ct,pgap_gene_c
                         prokka_go_perc,bakta_go_perc,eggnog_go_perc,pgap_go_perc,prokka_go_nonhyp_perc,bakta_go_nonhyp_perc,eggnog_go_nonhyp_perc,pgap_go_nonhyp_perc)
 
 colnames(summary_df) <- c("id","type",col_labels_genecount,col_labels_hyps,col_labels_perc_hyps,col_labels_CDS,col_labels_rrna,col_labels_trna,col_labels_tmrna,
-                          col_labels_prot_lenght,col_labels_named_prot_lenght,col_labels_hyp_prot_lenght,col_labels_start_end_comps,
+                          col_labels_startcodons,col_labels_prot_lenght,col_labels_named_prot_lenght,col_labels_hyp_prot_lenght,col_labels_start_end_comps,
                           col_labels_go_sum,col_labels_go_median,col_labels_go_perc,col_labels_go_nonhyp_perc)
 
 write_csv(summary_df,"comparison.csv")

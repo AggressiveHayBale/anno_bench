@@ -1,5 +1,7 @@
 process prokka {
     label 'prokka'
+    storeDir "${params.tmp_storage}/prokka"
+    maxForks 100
     input: 
         tuple val(name), val(species), path(fasta), val(type)
     output: 

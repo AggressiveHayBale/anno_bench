@@ -1,5 +1,7 @@
 process fasta_mod {
     label 'ubuntu'
+    storeDir "${params.tmp_storage}/fasta_mod"
+    maxForks 100
     input: 
         tuple val(name), val(species), path(dir), val(contig), val(noise)
 

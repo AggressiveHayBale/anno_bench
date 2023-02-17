@@ -1,7 +1,6 @@
 process eggnog_database {
     label 'eggnog'
     storeDir "${params.databases}/eggnog"
-   
     output: 
         path("eggnog_db")
     script:
@@ -18,6 +17,8 @@ process eggnog_database {
 
 process eggnog {
     label 'eggnog'
+    storeDir "${params.tmp_storage}/eggnog"
+    maxForks 200
     input:
         tuple val(name), val(species), path(fasta), val(type)
         path(eggnog_db_dir)

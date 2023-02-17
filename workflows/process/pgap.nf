@@ -19,6 +19,8 @@ process pgap_database {
 
 process pgap {
     label 'pgap'
+    storeDir "${params.tmp_storage}/pgap"
+    maxForks 300
     input: 
         tuple val(name), val(species), path(fasta), val(type)
         path(pgap_db)
