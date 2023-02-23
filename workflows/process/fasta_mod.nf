@@ -3,24 +3,30 @@ process fasta_mod {
     storeDir "${params.tmp_storage}/fasta_mod"
     maxForks 100
     input: 
-        tuple val(name), val(species), path(dir), val(contig), val(noise)
+    // [GCA000012145, Rickettsia felis, cont_noise/anno_bench/bin/GCA_000012145.1.fna, 0.005, 0.01, 0.02]
+        tuple val(name), val(species), path(dir), val(noise), val(noise2), val(noise3)
 
     output: 
         tuple val(name), val(species), path("original_${name}.fasta"), val("original"), emit: original
-        tuple val(name), val(species), path("split_${name}.fasta"), val("split"), emit: split
-        tuple val(name), val(species), path("noise_${name}.fasta"), val("noise"), emit: noise
+        tuple val(name), val(species), path("noise_${noise}_${name}.fasta"), val("noise"), emit: noise
+        tuple val(name), val(species), path("noise_${noise2}_${name}.fasta"), val("noise2"), emit: noise2
+        tuple val(name), val(species), path("noise_${noise3}_${name}.fasta"), val("noise3"), emit: noise3
     publishDir "${params.output}/${name}/fasta", mode: 'copy'
     //Needed if one line fastas are included 
     //bash fasta_normalisation.sh ${dir} > original_${name}.fasta
+    //bash splitter.sh ${name} ${dir} ${contig}
     script: 
     """ 
         cat ${dir} > original_${name}.fasta
-        bash splitter.sh ${name} ${dir} ${contig}
-        bash noise.sh ${name} ${dir} ${noise}
+        bash noise.sh "${name}" "${dir}" "${noise}"
+        bash noise.sh "${name}" "${dir}" "${noise2}"
+        bash noise.sh "${name}" "${dir}" "${noise3}"
     """
     stub:
     """
-        touch "${name}"_contigsplit.fasta
-        touch "${name}"_noise.fasta
+        touch "original_${name}.fasta"
+        touch "noise_${noise}_${name}.fasta"
+        touch "noise_${noise2}_${name}.fasta"
+        touch "noise_${noise3}_${name}.fasta"
     """
 }

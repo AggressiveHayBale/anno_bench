@@ -266,6 +266,12 @@ pgap_start_codon_M <-sum(substr(pgap$sequence, 1, 1) %in% "M")
 pgap_start_codon_V <-sum(substr(pgap$sequence, 1, 1) %in% "V")
 pgap_start_codon_L <-sum(substr(pgap$sequence, 1, 1) %in% "L")
 
+#phage content
+prokka_phage_cont <-sum(substr(prokka$X9, 1, 1) %in% "phage")
+bakta_phage_cont<-sum(substr(bakta$X9, 1, 1) %in% "phage")
+pgap_phage_cont <-sum(substr(pgap$X9, 1, 1) %in% "phage")
+eggnog_phage_cont <-sum(substr(eggnog$X9, 1, 1) %in% "phage")
+
 
 #Sequence 
 
@@ -321,11 +327,6 @@ eggnog_pgap_intersect_end<-length(intersect(na.omit(eggnog$X5),na.omit(pgap$X5))
 pgap_bakta_intersect_end<-length(intersect(na.omit(pgap$X5),na.omit(bakta$X5)))
 pgap_eggnog_intersect_end<-length(intersect(na.omit(pgap$X5),na.omit(eggnog$X5)))
 
-#Start amino acid
-
-
-
-
 #Functional analysis
 
 ## GO annotated proteins
@@ -377,6 +378,7 @@ col_labels_go_sum <- c(c("Prokka at least 1 GO","Bakta at least 1 GO","EGGnog at
 col_labels_go_median <- c(c("Prokka median GO","Bakta median GO","EGGnog median GO","PGAP median GO"))
 col_labels_go_perc<-c(c("Prokka at least 1 go(%)","Bakta at least 1 go(%)","EGGnog at least 1 go(%)","PGAP at least 1 go(%)"))
 col_labels_go_nonhyp_perc<-c(c("Prokka at least 1 go in nonhypohetical genes(%)","Bakta at least 1 go in nonhypohetical genes(%)","EGGnog at least 1 go in nonhypohetical genes(%)","PGAP at least 1 go in nonhypohetical genes(%)"))
+col_labels_phage_cont<-c(c("Prokka Phage Desc","Bakta Phage Desc","EGGnog Phage Desc","PGAP Phage Desc"))
 
 summary_df<- data.frame(id, fasta_type, prokka_gene_ct,bakta_gene_ct,pgap_gene_ct,eggnog_gene_ct,
                         prokka_hyps,bakta_hyps,pgap_hyps,eggnog_hyps,
@@ -398,10 +400,11 @@ summary_df<- data.frame(id, fasta_type, prokka_gene_ct,bakta_gene_ct,pgap_gene_c
                         eggnog_pgap_intersect_start,eggnog_pgap_intersect_end,pgap_bakta_intersect_start,pgap_bakta_intersect_end,
                         pgap_eggnog_intersect_start,pgap_eggnog_intersect_end, 
                         prokka_go_sum,bakta_go_sum,eggnog_go_sum,pgap_go_sum, prokka_med_go,bakta_med_go,eggnog_med_go,pgap_med_go,
-                        prokka_go_perc,bakta_go_perc,eggnog_go_perc,pgap_go_perc,prokka_go_nonhyp_perc,bakta_go_nonhyp_perc,eggnog_go_nonhyp_perc,pgap_go_nonhyp_perc)
+                        prokka_go_perc,bakta_go_perc,eggnog_go_perc,pgap_go_perc,prokka_go_nonhyp_perc,bakta_go_nonhyp_perc,eggnog_go_nonhyp_perc,pgap_go_nonhyp_perc,
+                        prokka_phage_cont,bakta_phage_cont,pgap_seq_lenght,eggnog_seq_lenght)
 
 colnames(summary_df) <- c("id","type",col_labels_genecount,col_labels_hyps,col_labels_perc_hyps,col_labels_CDS,col_labels_rrna,col_labels_trna,col_labels_tmrna,
                           col_labels_startcodons,col_labels_prot_lenght,col_labels_named_prot_lenght,col_labels_hyp_prot_lenght,col_labels_start_end_comps,
-                          col_labels_go_sum,col_labels_go_median,col_labels_go_perc,col_labels_go_nonhyp_perc)
+                          col_labels_go_sum,col_labels_go_median,col_labels_go_perc,col_labels_go_nonhyp_perc,col_labels_phage_cont)
 
 write_csv(summary_df,"comparison.csv")

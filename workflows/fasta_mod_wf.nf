@@ -7,7 +7,7 @@ workflow fasta_mod_wf{
     
     fasta_mod(fasta)
 
-    combined_fasta_ch = fasta_mod.out.original.mix(fasta_mod.out.split).mix(fasta_mod.out.noise)
+    combined_fasta_ch = fasta_mod.out.original.mix(fasta_mod.out.noise).mix(fasta_mod.out.noise2).mix(fasta_mod.out.noise3)
 
     emit: 
     combined_fasta_ch
