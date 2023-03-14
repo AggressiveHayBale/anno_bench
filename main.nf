@@ -75,8 +75,8 @@ include {analysis_wf} from './workflows/analysis_wf.nf'
 **************************/
 workflow {
 fasta_mod_wf(csv_ch)
-annotation_wf(fasta_mod_wf.out.combined_fasta_ch)
-analysis_wf(annotation_wf.out.combined)
+ annotation_wf(fasta_mod_wf.out.combined_fasta_ch)
+ analysis_wf(annotation_wf.out.combined)
 }
 
 

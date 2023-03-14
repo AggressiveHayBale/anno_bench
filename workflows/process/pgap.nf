@@ -19,14 +19,14 @@ process pgap_database {
 
 process pgap {
     label 'pgap'
-    storeDir "${params.tmp_storage}/pgap"
+    storeDir "${params.tmp_storage}/${type}/${name}/pgap/"
     maxForks 300
     input: 
         tuple val(name), val(species), path(fasta), val(type)
         path(pgap_db)
 
     output: 
-        tuple val(name), val(type),val("pgap"), path("${type}_${name}_pgap.faa"), path("${type}_${name}_pgap.gff"), emit: annotation_pgap
+        tuple val(name), val(type), path("${type}_${name}_pgap.faa"), path("${type}_${name}_pgap.gff"), emit: annotation_pgap
         publishDir "${params.output}/${name}/pgap", mode: 'copy' 
     script:
         """

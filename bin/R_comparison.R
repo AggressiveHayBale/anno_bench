@@ -266,11 +266,16 @@ pgap_start_codon_M <-sum(substr(pgap$sequence, 1, 1) %in% "M")
 pgap_start_codon_V <-sum(substr(pgap$sequence, 1, 1) %in% "V")
 pgap_start_codon_L <-sum(substr(pgap$sequence, 1, 1) %in% "L")
 
+prokka_start_codon_NA <-  sum(is.na(prokka$sequence))
+bakta_start_codon_NA <-  sum(is.na(bakta$sequence))
+eggnog_start_codon_NA <-  sum(is.na(eggnog$sequence))
+pgap_start_codon_NA <-  sum(is.na(pgap$sequence))
+
 #phage content
-prokka_phage_cont <-sum(substr(prokka$X9, 1, 1) %in% "phage")
-bakta_phage_cont<-sum(substr(bakta$X9, 1, 1) %in% "phage")
-pgap_phage_cont <-sum(substr(pgap$X9, 1, 1) %in% "phage")
-eggnog_phage_cont <-sum(substr(eggnog$X9, 1, 1) %in% "phage")
+prokka_phage_cont <-sum(grepl("phage", prokka$X9, ignore.case = TRUE))
+bakta_phage_cont<-sum(grepl("phage", bakta$X9, ignore.case = TRUE))
+pgap_phage_cont <-sum(grepl("phage", pgap$X9, ignore.case = TRUE))
+eggnog_phage_cont <-sum(grepl("phage", eggnog$X9, ignore.case = TRUE))
 
 
 #Sequence 
@@ -362,16 +367,14 @@ col_labels_CDS<- c(c("Prokka CDS","Bakta CDS","PGAP CDS"))
 col_labels_rrna<- c(c("Prokka rRNA","Bakta rRNA","PGAP rRNA"))
 col_labels_trna<- c(c("Prokka tRNA","Bakta tRNA","PGAP tRNA"))
 col_labels_tmrna<- c(c("Prokka tmRNA","Bakta tmRNA","PGAP tmRNA"))
-col_labels_startcodons<- c(c("prokka_start_codon_M","prokka_start_codon_V","prokka_start_codon_L","
-                        bakta_start_codon_M","bakta_start_codon_V","bakta_start_codon_L","
-                        eggnog_start_codon_M","eggnog_start_codon_V","eggnog_start_codon_L","
-                        pgap_start_codon_M","pgap_start_codon_V","pgap_start_codon_L"))
+col_labels_startcodons<- c(c("prokka_start_codon_M","prokka_start_codon_V","prokka_start_codon_L","bakta_start_codon_M","bakta_start_codon_V","bakta_start_codon_L","eggnog_start_codon_M","eggnog_start_codon_V","eggnog_start_codon_L","pgap_start_codon_M","pgap_start_codon_V","pgap_start_codon_L",
+                        "prokka_start_codon_NA","bakta_start_codon_NA","eggnog_start_codon_NA","pgap_start_codon_NA"))
 col_labels_prot_lenght <- c(c("Prokka total protein lenght","Bakta total protein lenght","PGAP total protein lenght","EGGnog total protein lenght"))
 col_labels_named_prot_lenght <- c(c("Prokka protein lenght","Bakta protein lenght","PGAP protein lenght","EGGnog protein lenght"))
 col_labels_hyp_prot_lenght <- c(c("Prokka hypothetical protein lenght","Bakta hypothetical protein lenght","PGAP hypothetical protein lenght","EGGnog  hypothetical protein lenght"))
-col_labels_start_end_comps <- c(c(" Prokka Bakta intersect start"," Prokka Bakta intersect end"," Prokka EGGnog intersect start"," Prokka EGGnog intersect end",
-                                  " Prokka PGAP intersect start"," Prokka PGAP intersect end"," Bakta EGGnog intersect start"," Bakta EGGnog intersect end",
-                                  " Bakta PGAP intersect start"," Bakta PGAP intersect end","EGGnog Bakta intersect start","EGGnog Bakta intersect end",
+col_labels_start_end_comps <- c(c("Prokka Bakta intersect start","Prokka Bakta intersect end","Prokka EGGnog intersect start"," Prokka EGGnog intersect end",
+                                  "Prokka PGAP intersect start","Prokka PGAP intersect end","Bakta EGGnog intersect start"," Bakta EGGnog intersect end",
+                                  "Bakta PGAP intersect start","Bakta PGAP intersect end","EGGnog Bakta intersect start","EGGnog Bakta intersect end",
                                   "EGGnog PGAP intersect start","EGGnog PGAP intersect end","PGAP Bakta intersect start","PGAP Bakta intersect end",
                                   "PGAP EGGnog intersect start","PGAP EGGnog intersect end"))
 col_labels_go_sum <- c(c("Prokka at least 1 GO","Bakta at least 1 GO","EGGnog at least 1 GO","PGAP at least 1 GO"))
@@ -391,6 +394,7 @@ summary_df<- data.frame(id, fasta_type, prokka_gene_ct,bakta_gene_ct,pgap_gene_c
                         bakta_start_codon_M,bakta_start_codon_V,bakta_start_codon_L,
                         eggnog_start_codon_M,eggnog_start_codon_V,eggnog_start_codon_L,
                         pgap_start_codon_M,pgap_start_codon_V,pgap_start_codon_L,
+                        prokka_start_codon_NA,bakta_start_codon_NA,eggnog_start_codon_NA,pgap_start_codon_NA,
                         prokka_seq_lenght,bakta_seq_lenght,pgap_seq_lenght,eggnog_seq_lenght,
                         named_prokka_seq_lenght,named_bakta_seq_lenght,named_pgap_seq_lenght,named_eggnog_seq_lenght,
                         hyp_prokka_seq_lenght,hyp_bakta_seq_lenght,hyp_pgap_seq_lenght,hyp_eggnog_seq_lenght,
@@ -401,7 +405,7 @@ summary_df<- data.frame(id, fasta_type, prokka_gene_ct,bakta_gene_ct,pgap_gene_c
                         pgap_eggnog_intersect_start,pgap_eggnog_intersect_end, 
                         prokka_go_sum,bakta_go_sum,eggnog_go_sum,pgap_go_sum, prokka_med_go,bakta_med_go,eggnog_med_go,pgap_med_go,
                         prokka_go_perc,bakta_go_perc,eggnog_go_perc,pgap_go_perc,prokka_go_nonhyp_perc,bakta_go_nonhyp_perc,eggnog_go_nonhyp_perc,pgap_go_nonhyp_perc,
-                        prokka_phage_cont,bakta_phage_cont,pgap_seq_lenght,eggnog_seq_lenght)
+                        prokka_phage_cont,bakta_phage_cont,pgap_phage_cont,eggnog_phage_cont)
 
 colnames(summary_df) <- c("id","type",col_labels_genecount,col_labels_hyps,col_labels_perc_hyps,col_labels_CDS,col_labels_rrna,col_labels_trna,col_labels_tmrna,
                           col_labels_startcodons,col_labels_prot_lenght,col_labels_named_prot_lenght,col_labels_hyp_prot_lenght,col_labels_start_end_comps,

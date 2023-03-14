@@ -12,7 +12,7 @@ workflow annotation_wf{
     //prokka
     prokka(combined_fasta_ch)
 
-    prokka_outs = prokka.out.annotation_prokka.map { it -> [it[0],[it[1], it[2], it[3], it[4]]]}.groupTuple(by:0)
+    prokka_outs = prokka.out.annotation_prokka.map { it -> [it[0],[it[1],"prokka",it[2], it[3]]]}.groupTuple(by:0)
 
     //bakta
 
@@ -21,14 +21,14 @@ workflow annotation_wf{
     bakta(combined_fasta_ch, bakta_db)
 
 
-    bakta_outs = bakta.out.annotation_bakta.map { it -> [it[0],[it[1], it[2], it[3], it[4]]]}.groupTuple(by:0)
+    bakta_outs = bakta.out.annotation_bakta.map { it -> [it[0],[it[1],"bakta",it[2], it[3]]]}.groupTuple(by:0)
     //eggnog
 
     if (params.eggnog_db) { eggnog_db = file(params.egg_db) }
         else { eggnog_db = eggnog_database() } 
     eggnog(combined_fasta_ch, eggnog_db)
 
-    eggnog_outs = eggnog.out.annotation_eggnog.map { it -> [it[0],[it[1], it[2], it[3], it[4]]]}.groupTuple(by:0)
+    eggnog_outs = eggnog.out.annotation_eggnog.map { it -> [it[0],[it[1], "eggnog", it[2], it[3]]]}.groupTuple(by:0)
    
     //pgap
     if (params.pgap_db) { pgap_db = file(params.pgap_db) }
@@ -36,7 +36,7 @@ workflow annotation_wf{
 
     pgap(combined_fasta_ch, pgap_db)
 
-    pgap_outs = pgap.out.annotation_pgap.map { it -> [it[0],[it[1], it[2], it[3], it[4]]]}.groupTuple(by:0)
+    pgap_outs = pgap.out.annotation_pgap.map { it -> [it[0],[it[1],"pgap",it[2], it[3]]]}.groupTuple(by:0)
  
     combined=prokka_outs.join(bakta_outs).join(eggnog_outs).join(pgap_outs)
     emit: 

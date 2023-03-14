@@ -1,12 +1,12 @@
 process prokka {
     label 'prokka'
-    storeDir "${params.tmp_storage}/prokka"
+    storeDir "${params.tmp_storage}/${type}/${name}/prokka/"
     maxForks 100
+    publishDir "${params.output}/${name}/prokka", mode: 'copy'
     input: 
         tuple val(name), val(species), path(fasta), val(type)
     output: 
-        tuple val(name), val(type), val("prokka"), path("${type}_${name}_prokka.faa"),path("${type}_${name}_prokka.gff"), emit: annotation_prokka
-        publishDir "${params.output}/${name}/prokka", mode: 'copy' 
+        tuple val(name), val(type), path("${type}_${name}_prokka.faa"),path("${type}_${name}_prokka.gff"), emit: annotation_prokka
     script:
         """
         prokka --compliant --fast \
