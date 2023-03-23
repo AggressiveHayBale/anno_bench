@@ -19,6 +19,8 @@ process bakta {
     maxForks 200
     publishDir "${params.output}/${name}/bakta", mode: 'copy' 
     storeDir "${params.tmp_storage}/${type}/${name}/bakta/"
+    errorStrategy 'retry'
+        maxRetries 2
     input: 
         tuple val(name), val(species), path(fasta), val(type)
         path(bakta_db_dir)
