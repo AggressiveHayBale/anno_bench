@@ -1,0 +1,989 @@
+#Report E. coli 
+=====
+
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(gridExtra)
+library(ggpubr)
+library(RColorBrewer)
+pallet <- brewer.pal(5,"Set1")
+
+
+#Full data
+r_full_1  <-  read_csv("/mnt/6TB_1/annobench_reports/ecoli/final_report_ecoli_1_batch/collected_original_fasta_report.csv")
+r_full_2  <-  read_csv("/mnt/6TB_1/annobench_reports/ecoli/final_report_ecoli_2_batch/collected_original_fasta_report.csv")
+ecoli  <- rbind(r_full_1,r_full_2)
+
+# Density
+r1 <- read_csv("/mnt/6TB_1/gits/tmp_ecoli1batch_dens/ecoli1_comparison_dens.csv")
+r2  <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecolirest_dens_final_report/dens_collected_original_fasta_report.csv")
+r2 <- r2[,-5]
+pgap  <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecolirest_pgap_dens_final_report/dens_pgap_collected_original_fasta_report.csv")
+r2  <- merge(r2,pgap,by= "Accession")
+colnames(r1)<-c("Accession","prokka_coding_len","bakta_coding_len","eggnog_coding_len","pgap_coding_len")
+colnames(r2)<-c("Accession","prokka_coding_len","bakta_coding_len","eggnog_coding_len","pgap_coding_len")
+dens  <- rbind(r1,r2)
+ecoli <- merge(ecoli,dens,by.x="id",by.y="Accession")
+
+#IGM 
+igm  <- read_tsv("/mnt/6TB_1/annobench_reports/ecoli/igm.txt")
+#Metadata 
+metadata <- read_delim("/mnt/6TB_1/gits/genome_download/bac120_metadata/bac120_metadata_r207.tsv")
+names(igm) <- gsub(" ", ".", names(igm))
+names(ecoli) <- gsub(" ", ".", names(ecoli))
+names(metadata) <- gsub(" ", ".", names(metadata))
+
+
+ecoli<-merge(ecoli, metadata, by.x= "id", by.y="ncbi_genbank_assembly_accession", all.x = TRUE, all.y = FALSE)
+ecoli<-merge(ecoli, igm, by.x= "id", by.y="NCBI.Assembly.Accession", all.x = TRUE, all.y = FALSE)
+
+#Genome size 
+gen_size1 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecoli1_word_counts.txt",col_names = FALSE)
+gen_size2 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecoli2_word_counts.txt",col_names = FALSE)
+gen_size  <- rbind(gen_size1,gen_size2)
+colnames(gen_size) <-c("id","gensize_manual")
+ecoli<- merge(ecoli,gen_size,by.x="id",by.y="id", all.x=TRUE,all.y=FALSE)
+
+
+
+```
+
+Original db file:  24387
+
+Sample count: `r length(ecoli$id)`
+
+GTDB species taxid 562: 24415
+
+Length of GTDB database to annotated samples:`r length(intersect(metadata$ncbi_genbank_assembly_accession,ecoli$id))`
+
+Length of IGM database to annotated samples:`r length(intersect(igm$NCBI.Assembly.Accession,referential$id))`
+
+```{r}
+# NOTE: Gene count 
+
+#Total gene count
+select(ecoli,c(Prokka.gene.count,Bakta.gene.count,EGGnog.gene.count,PGAP.gene.count)) %>% summary()
+select(ecoli,c(Prokka.gene.count,Bakta.gene.count,EGGnog.gene.count,PGAP.gene.count)) %>% pairs()
+
+
+#Hypotetical gene count
+select(ecoli,c(Prokka.hypothetical.genes,Bakta.hypothetical.genes,EGGnog.hypothetical.genes,PGAP.hypothetical.genes)) %>% summary()
+select(ecoli,c(Prokka.hypothetical.genes,Bakta.hypothetical.genes,EGGnog.hypothetical.genes,PGAP.hypothetical.genes)) %>% pairs()
+
+#Hypotetical gene count %
+select(ecoli,c(`Prokka.hypothetical.genes(%)`,`Bakta.hypothetical.genes(%)`,`EGGnog.hypothetical.genes(%)`,`PGAP.hypothetical.genes(%)`)) %>% summary()
+select(ecoli,c(`Prokka.hypothetical.genes(%)`,`Bakta.hypothetical.genes(%)`,`EGGnog.hypothetical.genes(%)`,`PGAP.hypothetical.genes(%)`)) %>% pairs()
+
+#TODO: Experiments
+#NOTE: Genecount vs Hyps
+g1 <- ggplot(data=ecoli, aes(y=Prokka.gene.count, x=`Prokka.hypothetical.genes(%)`)) + 
+	scale_x_continuous(limits = c(0,55))+
+	scale_y_continuous(limits = c(2500,13000))+
+	geom_point() +
+        theme_minimal()
+
+g2 <- ggplot(data=ecoli, aes(y=Bakta.gene.count, x=`Bakta.hypothetical.genes(%)`)) + 
+	scale_x_continuous(limits = c(0,55))+
+	scale_y_continuous(limits = c(2500,13000))+
+	geom_point() +
+        theme_minimal()
+
+g3 <- ggplot(data=ecoli, aes(y=EGGnog.gene.count, x=`EGGnog.hypothetical.genes(%)`)) + 
+	scale_x_continuous(limits = c(0,55))+
+	scale_y_continuous(limits = c(2500,13000))+
+	geom_point() +
+	theme_minimal()
+
+g4 <- ggplot(data=ecoli, aes(y=PGAP.gene.count, x=`PGAP.hypothetical.genes(%)`)) + 
+	scale_x_continuous(limits = c(0,55))+
+	scale_y_continuous(limits = c(2500,13000))+
+	geom_point() +
+        theme_minimal()
+ggsave("genecountvshypsperc.jpeg",ggarrange(g1,g2,g3,g4,ncol = 4),bg="white")
+
+#NOTE: Composition plot
+
+
+
+plot_tmp <- NULL
+plot_tmp <-  select(ecoli,3:14, prokka_coding_len,bakta_coding_len,eggnog_coding_len,pgap_coding_len,genome_size,51:55,18:26)
+plot_tmp$prokka_coding_len_prop <- plot_tmp$prokka_coding_len/plot_tmp$genome_size
+plot_tmp$bakta_coding_len_prop <- plot_tmp$bakta_coding_len/plot_tmp$genome_size
+plot_tmp$eggnog_coding_len_prop<- plot_tmp$prokka_coding_len/plot_tmp$genome_size
+plot_tmp$pgap_coding_len_prop <- plot_tmp$pgap_coding_len/plot_tmp$genome_size
+
+
+plot_tmp$prokka_hyptot <- plot_tmp$prokka_coding_len_prop*(plot_tmp$`Prokka.hypothetical.genes(%)`/100)
+plot_tmp$bakta_hyptot <- plot_tmp$bakta_coding_len_prop*(plot_tmp$`Bakta.hypothetical.genes(%)`/100)
+plot_tmp$eggnog_hyptot <- plot_tmp$eggnog_coding_len_prop*(plot_tmp$`EGGnog.hypothetical.genes(%)`/100)
+plot_tmp$pgap_hyptot <- plot_tmp$pgap_coding_len_prop*(plot_tmp$`EGGnog.hypothetical.genes(%)`/100)
+
+
+
+plot_data  <- data.frame(
+		group=c("Prokka","Bakta","EGGnog","PGAP"),
+		type = c("1Hypothetical genes","1Hypothetical genes","1Hypothetical genes","1Hypothetical genes","Annotated genes","Annotated genes","Annotated genes","Annotated genes"),
+		val=c(median(plot_tmp$prokka_hyptot),median(plot_tmp$bakta_hyptot),median(plot_tmp$eggnog_hyptot),median(plot_tmp$pgap_hyptot),median(plot_tmp$prokka_coding_len_prop-plot_tmp$prokka_hyptot),median(plot_tmp$bakta_coding_len_prop-plot_tmp$bakta_hyptot),median(plot_tmp$eggnog_coding_len_prop-plot_tmp$eggnog_hyptot),median(plot_tmp$pgap_coding_len_prop-plot_tmp$pgap_hyptot)))
+
+
+ggplot(data = plot_data) +
+geom_bar(position='stack', stat='identity',mapping = aes(x = group,y=val ,fill = type))#+
+#coord_polar()
+
+#TODO: extracting examplary rRNA / tRNA tmRNA 
+
+example <- read_delim("/mnt/6TB_1/gits/anno_bench/results/GCA_000005825.2/bakta/original_GCA_000005825.2_bakta.gff3",
+                                          delim = "\t", escape_double = FALSE,
+                                          col_names = FALSE, comment = c("#"), trim_ws = TRUE)
+example<- invisible(na.omit(example))
+bakta <- mutate(as.data.frame(example),len = if_else(X3 == c("rRNA","tRNA"),X5-X4,0))
+rRNA_size <- bakta %>% filter(X3=="rRNA") %>% select(len)%>% summarise(mean(len)) %>% as.numeric()
+plot_tmp$prokka_rrna <- (rRNA_size*plot_tmp$Prokka.rRNA)/plot_tmp$genome_size*100
+plot_tmp$bakta_rrna <- (rRNA_size*plot_tmp$Bakta.rRNA)/plot_tmp$genome_size*100
+plot_tmp$pgap_rrna <- (rRNA_size*plot_tmp$PGAP.rRNA)/plot_tmp$genome_size*100
+
+tRNA_size <- bakta %>% filter(X3=="tRNA") %>% select(len)%>% summarise(mean(len)) %>% as.numeric()
+plot_tmp$prokka_trna <- (tRNA_size*plot_tmp$Prokka.tRNA)/plot_tmp$genome_size*100
+plot_tmp$bakta_trna <- (tRNA_size*plot_tmp$Bakta.tRNA)/plot_tmp$genome_size*100
+plot_tmp$pgap_trna <- (tRNA_size*plot_tmp$PGAP.tRNA)/plot_tmp$genome_size*100
+
+library(waffle)
+dat_prokka <- c(`Fully annotated coding length`=median(plot_tmp$prokka_coding_len_prop)-median(plot_tmp$prokka_hyptot)-median(plot_tmp$prokka_rrna)-median(plot_tmp$prokka_trna),
+		`Hypothetical genes coding length`=median(plot_tmp$prokka_hyptot),
+		`Noncoding genome length`=1-median(plot_tmp$prokka_coding_len_prop),`rRNA coding length`=median(plot_tmp$prokka_rrna),`tRNA coding length`=median(plot_tmp$prokka_trna))
+
+dat_bakta <- c(median(plot_tmp$bakta_coding_len_prop)-median(plot_tmp$bakta_hyptot)-median(plot_tmp$bakta_rrna)-median(plot_tmp$bakta_trna)
+	       ,median(plot_tmp$bakta_hyptot),1-median(plot_tmp$bakta_coding_len_prop),median(plot_tmp$bakta_rrna),median(plot_tmp$bakta_trna))
+
+dat_eggnog <- c(median(plot_tmp$eggnog_coding_len_prop)-median(plot_tmp$eggnog_hyptot),median(plot_tmp$eggnog_hyptot),1-median(plot_tmp$eggnog_coding_len_prop))
+
+dat_pgap <- c(`Fully annotated coding length`=median(plot_tmp$pgap_coding_len_prop)-median(plot_tmp$pgap_hyptot)-median(plot_tmp$bakta_rrna)-median(plot_tmp$pgap_trna)
+	      ,`Hypothetical genes coding length`=median(plot_tmp$pgap_hyptot),`Noncoding genome length`=1-median(plot_tmp$pgap_coding_len_prop),`rRNA coding length`=median(plot_tmp$pgap_rrna),median(plot_tmp$pgap_trna))
+
+p1 <-waffle(100*dat_prokka,rows=10,flip = TRUE)+theme(legend.position = "none") +
+	labs(y=paste0("Gene count: ",median(ecoli$Prokka.gene.count)),title = "Prokka")
+b1 <- waffle(100*dat_bakta,rows=10,flip = TRUE)+theme(legend.position = "none")+
+  labs(y=paste0("Gene count: ",median(ecoli$Bakta.gene.count)),title = "Bakta")
+e1 <- waffle(100*dat_eggnog,rows=10,flip=TRUE)+theme(legend.position = "none")+
+  labs(y=paste0("Gene count: ",median(ecoli$EGGnog.gene.count)),title = "EGGnog-mapper")
+pg1 <- waffle(100*dat_pgap,rows=10,flip=TRUE  )+theme(legend.position = "none")+
+  labs(y=paste0("Gene count: ",median(ecoli$PGAP.gene.count)),title = "PGAP")
+ggarrange(p1,b1,e1,pg1, nrow=1, common.legend = TRUE, legend="right")
+
+ggsave("genome_composition.jpeg",ggarrange(p1,b1,e1,pg1, nrow=1, common.legend = TRUE, legend="right"),bg = "white")
+
+
+#TODO: Cool quality plot  
+
+
+ecoli$Prokka.func.prop <- (ecoli$Prokka.gene.count-ecoli$Prokka.hypothetical.genes)/ecoli$Prokka.hypothetical.genes
+ecoli$Prokka_hyp_coding_len <- ecoli$prokka_coding_len*(ecoli$`Prokka.hypothetical.genes(%)`/100)
+ecoli$Prokka.func_coding_len_prop  <- (ecoli$prokka_coding_len-ecoli$Prokka_hyp_coding_len)/ecoli$Prokka_hyp_coding_len
+ecoli$Prokka.func.protein.len.prop <- ecoli$Prokka.protein.lenght/ecoli$Prokka.hypothetical.protein.lenght
+
+g1 <- ggplot(data=ecoli , aes(x=Prokka.func.protein.len.prop,  y=Prokka.func_coding_len_prop)) + 
+	    geom_point() +
+	        theme_minimal()
+
+ecoli$Bakta.func.prop <- (ecoli$Bakta.gene.count-ecoli$Bakta.hypothetical.genes)/ecoli$Bakta.hypothetical.genes
+ecoli$Bakta_hyp_coding_len <- ecoli$bakta_coding_len*(ecoli$`Bakta.hypothetical.genes(%)`/100)
+ecoli$Bakta.func_coding_len_prop  <- (ecoli$bakta_coding_len-ecoli$Bakta_hyp_coding_len)/ecoli$Bakta_hyp_coding_len
+ecoli$Bakta.func.protein.len.prop <- ecoli$Bakta.protein.lenght/ecoli$Bakta.hypothetical.protein.lenght
+
+g2 <-g1+ geom_point(data=ecoli , aes(x=Bakta.func.protein.len.prop,  y=Bakta.func_coding_len_prop)) + 
+	        theme_minimal()
+
+ecoli$EGGnog.func.prop <- (ecoli$EGGnog.gene.count-ecoli$EGGnog.hypothetical.genes)/ecoli$EGGnog.hypothetical.genes
+ecoli$EGGnog_hyp_coding_len <- ecoli$eggnog_coding_len*(ecoli$`EGGnog.hypothetical.genes(%)`/100)
+ecoli$EGGnog.func_coding_len_prop  <- (ecoli$eggnog_coding_len-ecoli$EGGnog_hyp_coding_len)/ecoli$EGGnog_hyp_coding_len
+ecoli$EGGnog.func.protein.len.prop <- ecoli$EGGnog.protein.lenght/ecoli$EGGnog..hypothetical.protein.lenght
+
+g3 <-g2+ geom_point(data=ecoli , aes(x=EGGnog.func.protein.len.prop,  y=EGGnog.func_coding_len_prop)) + 
+	        theme_minimal()
+
+ecoli$PGAP.func.prop <- (ecoli$PGAP.gene.count-ecoli$PGAP.hypothetical.genes)/ecoli$PGAP.hypothetical.genes
+ecoli$PGAP_hyp_coding_len <- ecoli$eggnog_coding_len*(ecoli$`PGAP.hypothetical.genes(%)`/100)
+ecoli$PGAP.func_coding_len_prop  <- (ecoli$eggnog_coding_len-ecoli$PGAP_hyp_coding_len)/ecoli$PGAP_hyp_coding_len
+ecoli$PGAP.func.protein.len.prop <- ecoli$PGAP.protein.lenght/ecoli$PGAP.hypothetical.protein.lenght
+
+g4 <- g3+geom_point(data=ecoli , aes(x=PGAP.func.protein.len.prop,  y=PGAP.func_coding_len_prop)) + 
+	        theme_minimal()
+g4
+
+
+out_be_gone  <- function(dat, co){
+ifelse(co> (quantile(co,.25)-1.5*IQR(co))& co < (quantile(co,.75)+1.5*IQR(co)),co,NA) 
+}
+ecoli$Prokka.func.protein.len.prop.trimmed <- out_be_gone(ecoli,ecoli$Prokka.func.protein.len.prop)
+ecoli$Bakta.func.protein.len.prop.trimmed <- out_be_gone(ecoli,ecoli$Bakta.func.protein.len.prop)
+ecoli$EGGnog.func.protein.len.prop.trimmed <- out_be_gone(ecoli,ecoli$EGGnog.func.protein.len.prop)
+ecoli$PGAP.func.protein.len.prop.trimmed <- out_be_gone(ecoli,ecoli$PGAP.func.protein.len.prop)
+
+ecoli$Prokka.func_coding_len_prop_trimmed <- out_be_gone(ecoli,ecoli$Prokka.func_coding_len_prop)
+ecoli$Bakta.func_coding_len_prop_trimmed <- out_be_gone(ecoli,ecoli$Bakta.func_coding_len_prop)
+ecoli$EGGnog.func_coding_len_prop_trimmed <- out_be_gone(ecoli,ecoli$EGGnog.func_coding_len_prop)
+ecoli$PGAP.func_coding_len_prop_trimmed <- out_be_gone(ecoli,ecoli$PGAP.func_coding_len_prop)
+
+
+quality  <- data.frame(type=c(rep("prokka",length(ecoli$Prokka.func.protein.len.prop)),rep("bakta",length(ecoli$Bakta.func.protein.len.prop)),rep("eggnog",length(ecoli$EGGnog.func.protein.len.prop)),rep("pgap",length(ecoli$PGAP.func.protein.len.prop))),func.protein.len=c(ecoli$Prokka.func.protein.len.prop.trimmed,ecoli$Bakta.func.protein.len.prop.trimmed,ecoli$EGGnog.func.protein.len.prop.trimmed,ecoli$PGAP.func.protein.len.prop.trimmed),func.coding.len.prop=c(ecoli$Prokka.func_coding_len_prop_trimmed,ecoli$Bakta.func_coding_len_prop_trimmed,ecoli$EGGnog.func_coding_len_prop_trimmed,ecoli$PGAP.func_coding_len_prop_trimmed),size=c(ecoli$Prokka.gene.count,ecoli$Bakta.gene.count,ecoli$EGGnog.gene.count,ecoli$PGAP.gene.count))
+
+library(scales)
+library(hrbrthemes)
+library(viridis)
+quality$func.protein.len_scaled <- rescale(quality$func.protein.len,c(-1,1))
+quality$func.coding.len.prop_scaled<- rescale(quality$func.coding.len.prop ,c(-1,1))
+
+
+quality_plot<- ggplot(data=quality , aes(x=func.protein.len_scaled, y=func.coding.len.prop_scaled,color=type, size=size)) + 
+	    geom_point(size=1)+
+	    geom_vline(xintercept = 0) + 
+	    geom_hline(yintercept = 0)+ 
+	    scale_fill_viridis(discrete=TRUE,aesthetics = c("color"),option= "D") +
+	    theme_bw()
+quality_plot
+
+
+quality_nobakta  <- quality %>% filter(type != "bakta") 
+quality_nobakta[nrow(quality_nobakta)+1,]<- c("bakta",NA,NA,NA,NA,NA)
+quality_nobakta$func.coding.len.prop_scaled<- rescale(as.numeric(quality_nobakta$func.coding.len.prop),c(-1,1))
+quality_nobakta$func.protein.len_scaled <- rescale(as.numeric(quality_nobakta$func.protein.len),c(-1,1))
+quality_nobakta_plot <- ggplot(data=quality_nobakta, aes(x=func.protein.len_scaled, y=func.coding.len.prop_scaled,color=type, size=size)) + 
+	    geom_point(size=1,alpha=1)+
+	    geom_vline(xintercept = 0) + 
+	    geom_hline(yintercept = 0)+ 
+    scale_fill_viridis(discrete=TRUE,aesthetics = c("color"),option= "D") +
+    theme_minimal()
+q <- quality_nobakta_plot+ annotation_custom(ggplotGrob(quality_plot+theme(legend.position = "none",axis.title.x= element_blank(),axis.title.y= element_blank()  )),ymin = 0.5,ymax=1.1,xmin = 0,xmax = 1.1)
+q
+ggsave("quality_plot.jpeg",q,bg = "white")
+
+#FIX: Not scaled 
+quality$func.protein.len_scaled <- quality$func.protein.len
+quality$func.coding.len.prop_scaled<- quality$func.coding.len.prop
+quality_plot<- ggplot(data=quality , aes(x=func.protein.len_scaled, y=func.coding.len.prop_scaled,color=type, size=size)) + 
+	    geom_point(size=1)+
+	    geom_vline(xintercept = 0) + 
+	    geom_hline(yintercept = 0)+ 
+	    scale_fill_viridis(discrete=TRUE,aesthetics = c("color"),option= "D") +
+	    theme_bw()
+
+quality_nobakta  <- quality %>% filter(type != "bakta") 
+quality_nobakta$func.coding.len.prop_scaled<- quality_nobakta$func.coding.len.prop
+quality_nobakta$func.protein.len_scaled <- quality_nobakta$func.protein.len
+quality_nobakta <- ggplot(data=quality_nobakta, aes(x=func.protein.len_scaled, y=func.coding.len.prop_scaled,color=type, size=size)) + 
+	    geom_point(size=1,alpha=1)+
+	    geom_vline(xintercept = 0) + 
+	    geom_hline(yintercept = 0)+ 
+    scale_fill_viridis(discrete=TRUE,aesthetics = c("color"),option= "D") +
+    theme_minimal()
+quality_nobakta+ annotation_custom(ggplotGrob(quality_plot+theme(legend.position = "none",axis.title.x= element_blank(),axis.title.y= element_blank()  )),ymin = 0.5,ymax=1.1,xmin = 0,xmax = 1.1)
+
+
+# Exploration of differences between Bakta and PGAP
+g <- ggplot(data = ecoli, aes(`Bakta.hypothetical.genes(%)`,`PGAP.hypothetical.genes(%)`))+
+        geom_point(aes())
+g2 <- g+ geom_point(data = filter(ecoli,ncbi_genome_category=="derived from metagenome"),aes(colour="metagenome"))
+g3 <- g2+ geom_point(data = filter(ecoli,PGAP.total.protein.lenght<250),aes(colour="PGAP total.protein.lenght<250"), color="blue")
+s3 <- g3 + geom_point(data = filter(ecoli,Bakta.total.protein.lenght<250),aes(colour="Bakta total.protein.lenght<250"), shape=23, size= 5)+ theme_bw()
+
+g <- ggplot(data = ecoli, aes(`Bakta.hypothetical.genes(%)`,`EGGnog.hypothetical.genes(%)`))+
+        geom_point(aes())
+g2 <- g+ geom_point(data = filter(ecoli,ncbi_genome_category=="derived from metagenome"),aes(colour="metagenome"))
+g3 <- g2+ geom_point(data = filter(ecoli,EGGnog.total.protein.lenght<250),aes(colour="Eggnog total.protein.lenght<250"), color="blue")
+s2 <- g3 + geom_point(data = filter(ecoli,Bakta.total.protein.lenght<250),aes(colour="Bakta total.protein.lenght<250"), shape=23, size= 5)+ theme_bw()
+
+g <- ggplot(data = ecoli, aes(`Bakta.hypothetical.genes(%)`,`Prokka.hypothetical.genes(%)`))+
+        geom_point(aes())
+g2 <- g+ geom_point(data = filter(ecoli,ncbi_genome_category=="derived from metagenome"),aes(colour="metagenome"))
+g3 <- g2+ geom_point(data = filter(ecoli,Prokka.total.protein.lenght<250),aes(colour="Prokka total.protein.lenght<250"), color="blue")
+s1 <- g3 + geom_point(data = filter(ecoli,Bakta.total.protein.lenght<250),aes(colour="Bakta total.protein.lenght<250"), shape=23, size= 5)+ theme_bw()
+
+ggsave("tot_prot.jpeg", grid.arrange(s1,s2,s3))
+
+```
+```{r}
+# NOTE: Gene length
+select(ecoli,Prokka.total.protein.lenght, Bakta.total.protein.lenght, EGGnog.total.protein.lenght, PGAP.total.protein.lenght)%>%summary()
+jpeg("total_gene_len.jpeg" )
+select(ecoli,Prokka.total.protein.lenght, Bakta.total.protein.lenght, EGGnog.total.protein.lenght, PGAP.total.protein.lenght)%>%pairs()
+dev.off()
+
+
+#ggplot(ecoli,aes(Bakta.total.protein.lenght,PGAP.total.protein.lenght))+ 
+#	geom_point()
+
+```
+
+
+```{r}
+# NOTE: Total protein count vs Total protein length
+
+ggplot(ecoli,aes(Prokka.gene.count,Prokka.total.protein.lenght))+
+        geom_point()
+ggplot(ecoli,aes(Bakta.gene.count,Bakta.total.protein.lenght))+
+        geom_point()
+ggplot(ecoli,aes(EGGnog.gene.count,EGGnog.total.protein.lenght))+
+         geom_point()
+ggplot(ecoli,aes(`EGGnog.hypothetical.genes(%)`,EGGnog.total.protein.lenght))+
+         geom_point()
+g <- ggplot(ecoli,aes(PGAP.gene.count,PGAP.total.protein.lenght))+
+        geom_point()
+g+ geom_point(data = filter(ecoli,ncbi_genome_category=="derived from metagenome"),aes(colour="red"))
+```
+
+```{r}
+# NOTE: Gene density
+
+
+ecoli$prop_coding_prokka <- (ecoli$Prokka.gene.count*ecoli$Prokka.total.protein.lenght)/ecoli$gensize_manual
+ecoli$density_bakta <- (ecoli$Bakta.gene.count*ecoli$Bakta.total.protein.lenght)/ecoli$gensize_manual
+ecoli$density_eggnog <- (ecoli$EGGnog.gene.count*ecoli$EGGnog.total.protein.lenght)/ecoli$gensize_manual
+ecoli$density_pgap <- (ecoli$PGAP.gene.count*ecoli$PGAP.total.protein.lenght)/ecoli$gensize_manual
+
+select(ecoli, density_prokka,density_bakta,density_eggnog,density_pgap)%>% summary()
+
+
+#Total gene count density
+ecoli$Prokkadensity <- (ecoli$Prokka.gene.count/ecoli$gensize_manual)*1000
+ecoli$Baktadensity <- (ecoli$Bakta.gene.count/ecoli$gensize_manual)*1000
+ecoli$Eggdensity<- (ecoli$EGGnog.gene.count/ecoli$gensize_manual)*1000
+ecoli$Pgapdensity <- (ecoli$PGAP.gene.count/ecoli$gensize_manual)*1000
+ecoli$Reporteddenisty <- (ecoli$protein_count/ecoli$gensize_manual)*1000
+ecoli$Igmdensity  <-  (ecoli$`Gene.Count...*.assembled`/ecoli$gensize_manual)*1000
+select(ecoli,c(Prokkadensity,Baktadensity, Eggdensity, Pgapdensity,Reporteddenisty ,Igmdensity))%>% summary()
+select(ecoli,c(Prokkadensity,Baktadensity, Eggdensity, Pgapdensity,Reporteddenisty , Igmdensity))%>% pairs()
+
+g1 <- ggplot(ecoli,aes(x="",y=Prokkadensity))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,2.5))+theme_bw()
+g2 <- ggplot(ecoli,aes(x="",y=Baktadensity))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,2.5))+theme_bw()
+g3 <- ggplot(ecoli,aes(x="",y=Eggdensity))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,2.5))+theme_bw()
+g4 <- ggplot(ecoli,aes(x="",y=Pgapdensity))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,2.5))+theme_bw()
+g5 <- ggplot(ecoli,aes(x="",y=Reporteddenisty))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,2.5))+theme_bw()
+g6 <- ggplot(ecoli,aes(x="",y=Igmdensity))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,2.5))+theme_bw()
+ggsave("density.jpeg",grid.arrange(g1,g2,g3,g4,g5,g6,ncol=3  ))
+
+#Pgap vs all (bakta) discapncie
+s1 <- ggplot(data=ecoli , aes(x=Baktadensity, y=Pgapdensity)) + 
+	    geom_point() +
+	        theme_bw()
+#Zoomed
+g1 <- ggplot(data=filter(ecoli,Baktadensity<1.5 & Pgapdensity<1.5 ) , aes(x=Baktadensity, y=Pgapdensity)) + 
+	    geom_point() +
+	        theme_bw()
+s2 <- g1 + geom_point(data=filter(ecoli, ncbi_genome_category=="derived from metagenome"),aes(color="metagenome"))
+
+
+
+
+g1 <- ggplot(ecoli,aes(x=prokka_coding_len,y=Prokkadensity))+
+        geom_point(color=pallet[1])+
+	scale_y_continuous(limits = c(0.6,1.5))+
+	scale_x_continuous(limits = c(2e+06,8e+06))+theme_minimal()
+
+
+g2 <- ggplot(ecoli,aes(x=bakta_coding_len,y=Baktadensity))+
+        geom_point(color=pallet[2])+
+	scale_y_continuous(limits = c(0.6,1.5))+
+	scale_x_continuous(limits = c(2e+06,8e+06))+theme_minimal()
+
+
+g3 <- ggplot(ecoli,aes(x=eggnog_coding_len,y=Eggdensity))+
+        geom_point(color=pallet[3])+
+	scale_y_continuous(limits = c(0.6,1.5))+
+	scale_x_continuous(limits = c(2e+06,8e+06))+theme_minimal()
+
+g4 <- ggplot(ecoli,aes(x=pgap_coding_len,y=Pgapdensity))+
+        geom_point(color=pallet[4])+
+	scale_y_continuous(limits = c(0.6,1.5))+
+	scale_x_continuous(limits = c(2e+06,8e+06))+theme_minimal()
+s1 <- grid.arrange(g1,g2,g3,g4,ncol=4  )
+
+g1 <- ggplot(ecoli,aes(x=pgap_coding_len,color=pallet[4]))+
+        geom_density(alpha=.5,fill=pallet[4])
+g2 <- g1+geom_density(data= ecoli, aes(x= eggnog_coding_len,color=pallet[3],fill=pallet[3]),alpha=.25)+theme_minimal()+theme(legend.position = "none")
+g3<- g2+geom_density(data= ecoli, aes(x= bakta_coding_len,color=pallet[2],fill=pallet[2]),alpha=.5)
+s2 <- g3+geom_density(data= ecoli, aes(x= prokka_coding_len, color=pallet[1],fill=pallet[1]),alpha=.5)
+s2
+
+
+g1 <- ggplot(ecoli,aes(x=Pgapdensity))+
+        geom_density(alpha=.75,colour=pallet[4],fill=pallet[4])+
+	theme_minimal()+
+	scale_x_continuous(limits = c(0.5,1.5))
+
+g2 <- g1+geom_density(data= ecoli, aes(x= Prokkadensity),alpha=.75,colour=pallet[1],fill=pallet[1])+
+		      theme_minimal()+
+			scale_x_continuous(limits = c(0.5,1.5))
+
+g3<- g2+geom_density(data= ecoli, aes(x= Baktadensity),alpha=.75,colour=pallet[2],fill=pallet[2])+
+	theme_minimal()+
+	scale_x_continuous(limits = c(0.5,1.5))
+
+s3<- g3+geom_density(data= ecoli, aes(x= Eggdensity),alpha=.75,colour=pallet[3],fill=pallet[3])+
+	theme_minimal()+
+	scale_x_continuous(limits = c(0.5,1.5))
+
+a <- ggarrange(s2+clean_theme(),NULL,s1,s3+clean_theme()+rotate(),
+ncol=2,nrow=2,align="hv",widths=c(2,1),heights = c(1,2))
+ggsave("densityvscoding.jpeg",a,bg="white")
+
+
+#Hypothetical gene count density 
+ecoli$Prokkadensity_hyp <- (ecoli$Prokka.hypothetical.genes/ecoli$gensize_manual)*1000
+ecoli$Baktadensity_hyp <- (ecoli$Bakta.hypothetical.genes/ecoli$gensize_manual)*1000
+ecoli$Eggdensity_hyp <- (ecoli$EGGnog.hypothetical.genes/ecoli$gensize_manual)*1000
+ecoli$Pgapdensity_hyp <- (ecoli$PGAP.hypothetical.genes/ecoli$gensize_manual)*1000
+ecoli$Igmdensity_hyp  <-  (ecoli$`w/o.function.prediction..*.assembled`/ecoli$gensize_manual)*1000
+select(ecoli,c(Prokkadensity_hyp,Baktadensity_hyp, Eggdensity_hyp, Pgapdensity_hyp, Igmdensity_hyp))%>% summary()
+select(ecoli,c(Prokkadensity_hyp,Baktadensity_hyp, Eggdensity_hyp, Pgapdensity_hyp, Igmdensity_hyp))%>% pairs()
+g1 <- ggplot(ecoli,aes(x="",y=Prokkadensity_hyp))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,1.5))+theme_minimal()
+g2 <- ggplot(ecoli,aes(x="",y=Baktadensity_hyp))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,1.5))+theme_minimal()
+g3 <- ggplot(ecoli,aes(x="",y=Eggdensity_hyp))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,1.5))+theme_minimal()
+g4 <- ggplot(ecoli,aes(x="",y=Pgapdensity_hyp))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,1.5))+theme_minimal()
+s1<-grid.arrange(g1,g2,g3,g4,ncol=4  )
+ggsave("hypdensity.jpeg",s1)
+
+g1 <- ggplot(ecoli,aes(x=prokka_coding_len,y=Prokkadensity_hyp))+
+        geom_point()+
+	scale_y_continuous(limits = c(0,1.5))+
+	geom_point(data = filter(ecoli,Prokka.total.protein.lenght<250),aes(colour="Prokka total.protein.lenght<250"), shape=23, size= 5)+theme_minimal()+theme(legend.position="none")+
+	scale_x_continuous(limits = c(2e+06,7e+06))
+
+	
+g2 <- ggplot(ecoli,aes(x=bakta_coding_len,y=Baktadensity_hyp))+
+        geom_point()+
+	scale_y_continuous(limits = c(0,1.5))+
+	geom_point(data = filter(ecoli,Bakta.total.protein.lenght<250),aes(colour="Bakta total.protein.lenght<250"), shape=23, size= 5)+theme_minimal()+theme(legend.position="none")+
+	scale_x_continuous(limits = c(2e+06,7e+06))
+
+	
+g3 <- ggplot(ecoli,aes(x=eggnog_coding_len,y=Eggdensity_hyp))+
+        geom_point()+
+	scale_y_continuous(limits = c(0,1.5))+
+	geom_point(data = filter(ecoli,EGGnog.total.protein.lenght<250),aes(colour="EGGnog total.protein.lenght<250"), shape=23, size= 5)+theme_minimal()+theme(legend.position="none")+
+	scale_x_continuous(limits = c(2e+06,7e+06))
+
+	
+g4 <- ggplot(ecoli,aes(x=pgap_coding_len,y=Pgapdensity_hyp))+
+        geom_point()+
+	geom_point(data = filter(ecoli,PGAP.total.protein.lenght<250),aes(colour="PGAP total.protein.lenght<250"), shape=23, size= 5)+
+	scale_y_continuous(limits = c(0,1.5))+theme_minimal()+theme(legend.position="none")+
+	scale_x_continuous(limits = c(2e+06,7e+06))
+s1 <- grid.arrange(g1,g2,g3,g4,ncol=4  )
+
+ggsave("hypdensity.jpeg", s1,bg = "white")
+
+
+g1 <- ggplot(ecoli,aes(x=pgap_coding_len,color=pallet[4]))+
+        geom_density(alpha=.5,fill=pallet[4])
+g2 <- g1+geom_density(data= ecoli, aes(x= eggnog_coding_len,color=pallet[3],fill=pallet[3]),alpha=.25)+theme_minimal()+theme(legend.position = "none")
+g3<- g2+geom_density(data= ecoli, aes(x= bakta_coding_len,color=pallet[2],fill=pallet[2]),alpha=.5)
+s2 <- g3+geom_density(data= ecoli, aes(x= prokka_coding_len, color=pallet[1],fill=pallet[1]),alpha=.5)
+
+g1 <- ggplot(ecoli,aes(x=Pgapdensity_hyp))+
+        geom_density(alpha=.75,colour=pallet[4],fill=pallet[4])+
+	theme_minimal()+
+	scale_x_continuous()
+
+g2 <- g1+geom_density(data= ecoli, aes(x= Prokkadensity_hyp),alpha=.75,colour=pallet[1],fill=pallet[1])+
+		      theme_minimal()+
+			scale_x_continuous()
+
+g3<- g2+geom_density(data= ecoli, aes(x= Baktadensity_hyp),alpha=.75,colour=pallet[2],fill=pallet[2])+
+	theme_minimal()+
+	scale_x_continuous(limits = c())
+
+s3<- g3+geom_density(data= ecoli, aes(x= Eggdensity_hyp),alpha=.75,colour=pallet[3],fill=pallet[3])+
+	theme_minimal()+
+	scale_x_continuous(limits = c())
+
+s3
+
+a1 <- ggarrange(s2+clean_theme(),NULL,s1,s3+clean_theme()+rotate(),
+ncol=2,nrow=2,align="hv",widths=c(2,1),heights = c(1,2))
+
+ggsave("hypdensity.jpeg", a1, bg = "white")
+
+```
+
+
+```{r}
+# NOTE: RNA 
+
+ecoli$ncbi_rrna_count <- as.integer(ecoli$ncbi_rrna_count)
+ecoli$ncbi_trna_count <- as.integer(ecoli$ncbi_trna_count)
+select(ecoli,Prokka.rRNA,Bakta.rRNA,PGAP.rRNA, ncbi_rrna_count, `rRNA.Count...*.assembled`)%>%summary()
+select(ecoli,Prokka.rRNA,Bakta.rRNA,PGAP.rRNA, ncbi_rrna_count, `rRNA.Count...*.assembled`)%>%pairs()
+
+select(ecoli,Prokka.tRNA,Bakta.tRNA,PGAP.tRNA, ncbi_trna_count, `tRNA.Count...*.assembled`)%>%summary()
+select(ecoli,Prokka.tRNA,Bakta.tRNA,PGAP.tRNA, ncbi_trna_count, `tRNA.Count...*.assembled`)%>%pairs()
+select(ecoli,Prokka.tmRNA,Bakta.tmRNA,PGAP.tmRNA)%>% summary()
+
+```
+
+```{r}
+# NOTE: GO terms 
+summary(ecoli[,73:76])
+summary(ecoli[,77:80])
+summary(ecoli[,81:84])
+pairs(ecoli[,73:76])
+```
+```{r}
+# NOTE: Intersect start end position 
+ecoli %>% select(ends_with("intersect.start"))%>% pairs()
+ecoli %>% select(ends_with("intersect.end"))%>% pairs()
+```
+
+```{r}
+# FIX: Metadata 
+
+# NOTE: GC% 
+
+g1 <- ggplot(ecoli, aes(Prokka.gene.count,gc_percentage))+ 
+	geom_point()+theme_minimal()
+g2 <- ggplot(ecoli, aes(Bakta.gene.count,gc_percentage))+ 
+	geom_point()+theme_minimal()
+g3 <- ggplot(ecoli, aes(EGGnog.gene.count,gc_percentage))+ 
+	geom_point()+theme_minimal()
+g4 <- ggplot(ecoli, aes(PGAP.gene.count,gc_percentage))+ 
+	geom_point()+theme_minimal()
+a1 <- ggarrange(g1,g2,g3,g4,ncol = 4)
+
+ggsave("gc.jpeg", a1,bg="white")
+
+#NOTE: Checkm contamination
+
+g1 <- ggplot(ecoli, aes(Prokka.gene.count,checkm_contamination))+ 
+	geom_point()+theme_minimal()
+g2 <- ggplot(ecoli, aes(Bakta.gene.count,checkm_contamination))+ 
+	geom_point()+theme_minimal()
+g3 <- ggplot(ecoli, aes(EGGnog.gene.count,checkm_contamination))+ 
+	geom_point()+theme_minimal()
+g4 <- ggplot(ecoli, aes(PGAP.gene.count,checkm_contamination))+ 
+	geom_point()+theme_minimal()
+a1 <- ggarrange(g1,g2,g3,g4,ncol = 4)
+ggsave("checkm.jpeg", a1,bg="white")
+
+ggplot(ecoli, aes(`Prokka.hypothetical.genes(%)`,checkm_contamination))+ 
+	geom_point()
+ggplot(ecoli, aes(`Bakta.hypothetical.genes(%)`,checkm_contamination))+ 
+	geom_point()
+ggplot(ecoli, aes(`EGGnog.hypothetical.genes(%)`,checkm_contamination))+ 
+	geom_point()
+ggplot(ecoli, aes(`PGAP.hypothetical.genes(%)`,checkm_contamination))+ 
+	geom_point()
+#FIX:Kinda repeat from the last one ??
+# NOTE: Selfcalculated genome size 
+jpeg(file="gensizemancorr")
+plot(ecoli$gensize_manual,ecoli$genome_size) 
+dev.off()
+
+plot(ecoli$ncbi_total_length,ecoli$genome_size)
+summary(ecoli$gensize_manual)
+summary(ecoli$genome_size)
+summary(ecoli$ncbi_total_length)
+# NOTE: Codinglength density 
+plot(ecoli$gensize_manual,ecoli$prokka_coding_len)
+plot(ecoli$gensize_manual,ecoli$bakta_coding_len)
+plot(ecoli$gensize_manual,ecoli$eggnog_coding_len)
+plot(ecoli$gensize_manual,ecoli$pgap_coding_len)
+pairs(ecoli[,c("prokka_coding_len","bakta_coding_len","eggnog_coding_len","pgap_coding_len")],)
+
+g <- ggplot(data=ecoli , aes(x=gensize_manual, y=pgap_coding_len)) + 
+	    geom_point() +
+	        theme_minimal()
+g1  <- g+ geom_point(data = filter(ecoli,PGAP.total.protein.lenght<250),aes(colour="PGAP total.protein.lenght<250"), color="red")
+g1+ geom_point(data = filter(ecoli,ncbi_genome_category=="derived from metagenome"),aes(colour="metagenome"))
+
+# Check of coding length density
+#FIX: CODING PROPORTION OF GENOME
+summary(ecoli$prokka_coding_len/ecoli$gensize_manual)
+summary(ecoli$bakta_coding_len/ecoli$gensize_manual)
+summary(ecoli$eggnog_coding_len/ecoli$gensize_manual)
+summary(ecoli$pgap_coding_len/ecoli$gensize_manual)
+
+g1  <- ggplot(ecoli,aes(x = "", prokka_coding_len))+
+  	geom_violin()+
+	scale_y_continuous(limits = c(2e+06,7e+06))
+g2  <- ggplot(ecoli,aes(x = "", bakta_coding_len))+
+	geom_violin()+
+	scale_y_continuous(limits = c(2e+06,7e+06))
+
+g3  <- ggplot(ecoli,aes(x = "", eggnog_coding_len))+
+	geom_violin()+
+	scale_y_continuous(limits = c(2e+06,7e+06))
+
+g4  <- ggplot(ecoli,aes(x = "", pgap_coding_len))+
+ 	geom_violin()+
+	scale_y_continuous(limits = c(2e+06,7e+06))
+
+grid.arrange(g1,g2,g3,g4,ncol=4  )
+# WARN: Gene count vs coding length density
+ggplot(ecoli,aes(Bakta.gene.count , bakta_coding_len))+
+geom_point()
+
+ggplot(ecoli,aes(EGGnog.gene.count , eggnog_coding_len))+
+geom_point()
+
+ggplot(ecoli,aes(PGAP.gene.count , pgap_coding_len))+
+geom_point()
+
+ggplot(ecoli,aes(Prokka.hypothetical.genes, prokka_coding_len))+
+geom_point()
+ggplot(ecoli,aes(Bakta.hypothetical.genes, bakta_coding_len))+
+geom_point()
+ggplot(ecoli,aes(EGGnog.hypothetical.genes, eggnog_coding_len))+
+geom_point()
+ggplot(ecoli,aes(PGAP.hypothetical.genes, pgap_coding_len))+
+geom_point()
+# NOTE: Hyp% vs coding length
+ggplot(ecoli,aes(`Prokka.hypothetical.genes(%)`, prokka_coding_len))+
+geom_point()
+
+ggplot(ecoli,aes(`Bakta.hypothetical.genes(%)`,bakta_coding_len))+
+geom_point()
+
+ggplot(ecoli,aes(`EGGnog.hypothetical.genes(%)`, eggnog_coding_len))+
+geom_point()
+
+ggplot(ecoli,aes(`PGAP.hypothetical.genes(%)`, pgap_coding_len))+
+geom_point()
+
+#NOTE:Other random checkcs 
+ggplot(ecoli,aes(gensize_manual,pgap_coding_len))+
+        geom_point(aes(color=ncbi_genome_category),show.legend=TRUE)
+
+# WARN: Metagenome
+
+# NOTE: Basic check
+table(ecoli$ncbi_genome_category)
+sum(str_detect(ecoli$ncbi_organism_name,"bin"))
+sum(str_detect(ecoli$ncbi_strain_identifiers,"bin"))
+# Too little observations in single cell and env. sample to matter 
+ecoli$ncbi_genome_category[ecoli$ncbi_genome_category=="derived from environmental sample"]  <- "none"
+ecoli$ncbi_genome_category[ecoli$ncbi_genome_category=="derived from single cell"]  <- "none"
+
+
+# NOTE: Density 
+summary(lm(ecoli$Prokkadensity~ecoli$ncbi_genome_category))
+summary(lm(ecoli$Baktadensity~ecoli$ncbi_genome_category))
+summary(lm(ecoli$Eggdensity~ecoli$ncbi_genome_category))
+summary(lm(ecoli$Pgapdensity~ecoli$ncbi_genome_category))
+
+# NOTE:Density vs Metagenome (WARN: is it even important??????) 
+
+ggplot(ecoli[ecoli$ncbi_genome_category=="derived from metagenome",],aes(x = "", Prokkadensity))+
+geom_violin()
+
+ggplot(ecoli[ecoli$ncbi_genome_category=="derived from metagenome",],aes(x = "", Baktadensity))+
+geom_violin()
+
+ggplot(ecoli[ecoli$ncbi_genome_category=="derived from metagenome",],aes(x = "", Eggdensity))+
+geom_violin()
+
+ggplot(ecoli[ecoli$ncbi_genome_category=="derived from metagenome",],aes(x = "", Pgapdensity))+
+geom_violin()
+```
+
+
+```{r}
+# NOTE: Noise
+n1 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/final_report_ecoli_1_batch/collected_noise_fasta_report.csv")
+n2 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/final_report_ecoli_2_batch/collected_noise_fasta_report.csv")
+ecoli.noise<- rbind(n1,n2)
+
+r1 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecoli1_dens_final_report/ecoli1_noise_comparison_dens.csv")
+r2  <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecolirest_dens_final_report/dens_collected_noise_fasta_report.csv")
+pr2 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecolirest_pgap_dens_final_report/dens_pgap_collected_noise_fasta_report.csv")
+r2 <- merge(r2[,-5],pr2,by="Accession")
+noise_dens  <- rbind(r1,r2)
+
+colnames(noise_dens)<-c("Accession","prokka_coding_len","bakta_coding_len","eggnog_coding_len","pgap_coding_len")
+ecoli.noise <- merge(ecoli.noise,noise_dens,by.x="id",by.y="Accession")
+
+n1 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/final_report_ecoli_1_batch/collected_noise2_fasta_report.csv")
+n2 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/final_report_ecoli_2_batch/collected_noise2_fasta_report.csv")
+ecoli.noise2<- rbind(n1,n2)
+
+r1 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecoli1_dens_final_report/ecoli1_noise2_comparison_dens.csv")
+r2  <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecolirest_dens_final_report/dens_collected_noise2_fasta_report.csv")
+pr2 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecolirest_pgap_dens_final_report/dens_pgap_collected_noise2_fasta_report.csv")
+r2 <- merge(r2[,-5],pr2,by="Accession")
+noise2_dens  <- rbind(r1,r2)
+
+colnames(noise2_dens)<-c("Accession","prokka_coding_len","bakta_coding_len","eggnog_coding_len","pgap_coding_len")
+ecoli.noise2 <- merge(ecoli.noise2,noise2_dens,by.x="id",by.y="Accession")
+
+n1 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/final_report_ecoli_1_batch/collected_noise3_fasta_report.csv")
+n2 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/final_report_ecoli_2_batch/collected_noise3_fasta_report.csv")
+ecoli.noise3<- rbind(n1,n2)
+
+r1 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecoli1_dens_final_report/ecoli1_noise3_comparison_dens.csv")
+r2  <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecolirest_dens_final_report/dens_collected_noise3_fasta_report.csv")
+pr2 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecolirest_pgap_dens_final_report/dens_pgap_collected_noise3_fasta_report.csv")
+r2 <- merge(r2[,-5],pr2,by="Accession")
+noise3_dens  <- rbind(r1,r2) 
+
+colnames(noise3_dens)<-c("Accession","prokka_coding_len","bakta_coding_len","eggnog_coding_len","pgap_coding_len")
+ecoli.noise3 <- merge(ecoli.noise3,noise3_dens,by.x="id",by.y="Accession")
+
+
+names(ecoli.noise) <- gsub(" ", ".", names(ecoli.noise))
+names(ecoli.noise2) <- gsub(" ", ".", names(ecoli.noise2))
+names(ecoli.noise3) <- gsub(" ", ".", names(ecoli.noise3))
+
+summary(ecoli.noise[,3:14])
+summary(ecoli.noise2[,3:14])
+summary(ecoli.noise3[,3:14])
+
+noise_combined <- rbind(ecoli.noise,ecoli.noise2,ecoli.noise3)
+noise_combined <- rbind (noise_combined,ecoli[,colnames(ecoli) %in% colnames(noise_combined) ])
+
+
+
+g1 <- ggplot(noise_combined,aes(x=type,y=Prokka.gene.count))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,30000))+
+	theme_minimal()
+
+g2 <- ggplot(noise_combined,aes(x=type,y=Bakta.gene.count))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,30000))+
+	theme_minimal()
+
+g3 <- ggplot(noise_combined,aes(x=type,y=EGGnog.gene.count))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,30000))+
+	theme_minimal()
+
+g4 <- ggplot(noise_combined,aes(x=type,y=PGAP.gene.count))+
+	geom_violin()+
+	scale_y_continuous(limits = c(0,30000))+
+	theme_minimal()
+
+ggsave("noise_genecount.jpeg",grid.arrange(g1,g2,g3,g4,ncol=4  ))
+
+
+g1 <- ggplot(noise_combined,aes(x=type,y=`Prokka.hypothetical.genes(%)`))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,100))+
+	theme_minimal()
+
+g2 <- ggplot(noise_combined,aes(x=type,y=`Bakta.hypothetical.genes(%)`))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,100))+
+	theme_minimal()
+
+g3 <- ggplot(noise_combined,aes(x=type,y=`EGGnog.hypothetical.genes(%)`))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,100))+
+	theme_minimal()
+
+g4 <- ggplot(noise_combined,aes(x=type,y=`PGAP.hypothetical.genes(%)`))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,100))+
+	theme_minimal()
+
+ggsave("noise_hyps.jpeg",grid.arrange(g1,g2,g3,g4,ncol=4  ))
+
+# NOTE: Density comparison 
+# NOTE: Input
+gen_size1 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecoli1_word_counts.txt",col_names = FALSE)
+gen_size2 <- read_csv("/mnt/6TB_1/annobench_reports/ecoli/ecoli2_word_counts.txt",col_names = FALSE)
+gen_size  <- rbind(gen_size1,gen_size2)
+colnames(gen_size) <-c("id","gensize_manual")
+noise_combined<- merge(noise_combined,gen_size,by.x="id",by.y="id", all.x=TRUE,all.y=FALSE)
+noise_combined$Prokkadensity <- (noise_combined$Prokka.gene.count/noise_combined$gensize_manual)*1000
+noise_combined$Baktadensity <- (noise_combined$Bakta.gene.count/noise_combined$gensize_manual)*1000
+noise_combined$Eggdensity <- (noise_combined$EGGnog.gene.count/noise_combined$gensize_manual)*1000
+noise_combined$Pgapdensity <- (noise_combined$PGAP.gene.count/noise_combined$gensize_manual)*1000
+noise_combined$Prokkadensity_hyp <- (noise_combined$Prokka.hypothetical.genes/noise_combined$gensize_manual)*1000
+noise_combined$Baktadensity_hyp <- (noise_combined$Bakta.hypothetical.genes/noise_combined$gensize_manual)*1000
+noise_combined$Eggdensity_hyp <- (noise_combined$EGGnog.hypothetical.genes/noise_combined$gensize_manual)*1000
+noise_combined$Pgapdensity_hyp <- (noise_combined$PGAP.hypothetical.genes/noise_combined$gensize_manual)*1000
+
+# NOTE: Plots
+select(noise_combined[noise_combined$type =="noise",],c(Prokkadensity,Baktadensity, Eggdensity, Pgapdensity))%>% summary()
+select(noise_combined[noise_combined$type =="noise2",],c(Prokkadensity,Baktadensity, Eggdensity, Pgapdensity))%>% summary()
+select(noise_combined[noise_combined$type =="noise3",],c(Prokkadensity,Baktadensity, Eggdensity, Pgapdensity))%>% summary()
+select(noise_combined[noise_combined$type =="noise",],c(Prokkadensity,Baktadensity, Eggdensity, Pgapdensity))%>% pairs()
+select(noise_combined[noise_combined$type =="noise2",],c(Prokkadensity,Baktadensity, Eggdensity, Pgapdensity))%>% pairs()
+select(noise_combined[noise_combined$type =="noise3",],c(Prokkadensity,Baktadensity, Eggdensity, Pgapdensity))%>% pairs()
+
+select(noise_combined[noise_combined$type =="noise",],c(Prokkadensity_hyp,Baktadensity_hyp, Eggdensity_hyp, Pgapdensity_hyp))%>% summary()
+select(noise_combined[noise_combined$type =="noise2",],c(Prokkadensity_hyp,Baktadensity_hyp, Eggdensity_hyp, Pgapdensity_hyp))%>% summary()
+select(noise_combined[noise_combined$type =="noise3",],c(Prokkadensity_hyp,Baktadensity_hyp, Eggdensity_hyp, Pgapdensity_hyp))%>% summary()
+select(noise_combined[noise_combined$type =="noise",],c(Prokkadensity_hyp,Baktadensity_hyp, Eggdensity_hyp, Pgapdensity_hyp))%>% pairs()
+select(noise_combined[noise_combined$type =="noise2",],c(Prokkadensity_hyp,Baktadensity_hyp, Eggdensity_hyp, Pgapdensity_hyp))%>% pairs()
+select(noise_combined[noise_combined$type =="noise3",],c(Prokkadensity_hyp,Baktadensity_hyp, Eggdensity_hyp, Pgapdensity_hyp))%>% pairs()
+
+
+g1 <- ggplot(noise_combined,aes(x=type,y=Prokkadensity))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,4))+theme_minimal()
+g2 <- ggplot(noise_combined,aes(x=type,y=Baktadensity))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,4))+theme_minimal()
+g3 <- ggplot(noise_combined,aes(x=type,y=Eggdensity))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,4))+theme_minimal()
+g4 <- ggplot(noise_combined,aes(x=type,y=Pgapdensity))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,4))+theme_minimal()
+s1<-grid.arrange(g1,g2,g3,g4,ncol=4  )
+ggsave("noisedensity.jpeg",s1)
+
+g1 <- ggplot(noise_combined,aes(x=type,y=Prokkadensity_hyp))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,3))+theme_minimal()
+g2 <- ggplot(noise_combined,aes(x=type,y=Baktadensity_hyp))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,3))+theme_minimal()
+g3 <- ggplot(noise_combined,aes(x=type,y=Eggdensity_hyp))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,3))+theme_minimal()
+g4 <- ggplot(noise_combined,aes(x=type,y=Pgapdensity_hyp))+
+        geom_violin()+
+	scale_y_continuous(limits = c(0,3))+theme_minimal()
+s1<-grid.arrange(g1,g2,g3,g4,ncol=4  )
+ggsave("noise_hypdensity.jpeg",s1)
+
+p1 <- ggplot(noise_combined[noise_combined$type=="noise",],aes(x=prokka_coding_len,y=Prokkadensity))+
+        geom_point()+theme_minimal()
+p2 <- ggplot(noise_combined[noise_combined$type=="noise2",],aes(x=prokka_coding_len,y=Prokkadensity))+
+        geom_point()	+theme_minimal()
+p3  <- ggplot(noise_combined[noise_combined$type=="noise3",],aes(x=prokka_coding_len,y=Prokkadensity))+
+        geom_point()+theme_minimal()
+
+b1 <- ggplot(noise_combined[noise_combined$type=="noise",],aes(x=bakta_coding_len,y=Baktadensity))+
+        geom_point()+theme_minimal()
+b2 <- ggplot(noise_combined[noise_combined$type=="noise2",],aes(x=bakta_coding_len,y=Baktadensity))+
+        geom_point()	+theme_minimal()
+b3  <- ggplot(noise_combined[noise_combined$type=="noise3",],aes(x=bakta_coding_len,y=Baktadensity))+
+        geom_point()+theme_minimal()
+
+e1 <- ggplot(noise_combined[noise_combined$type=="noise",],aes(x=eggnog_coding_len,y=Eggdensity))+
+        geom_point()+theme_minimal()
+e2 <- ggplot(noise_combined[noise_combined$type=="noise2",],aes(x=eggnog_coding_len,y=Eggdensity))+
+        geom_point()	+theme_minimal()
+e3  <- ggplot(noise_combined[noise_combined$type=="noise3",],aes(x=eggnog_coding_len,y=Eggdensity))+
+        geom_point()+theme_minimal()
+
+pg1 <- ggplot(noise_combined[noise_combined$type=="noise",],aes(x=pgap_coding_len,y=Pgapdensity))+
+        geom_point()+theme_minimal()
+pg2 <- ggplot(noise_combined[noise_combined$type=="noise2",],aes(x=pgap_coding_len,y=Pgapdensity))+
+        geom_point()	+theme_minimal()
+pg3  <- ggplot(noise_combined[noise_combined$type=="noise3",],aes(x=pgap_coding_len,y=Pgapdensity))+
+        geom_point()+theme_minimal()
+
+a1 <- grid.arrange(p1,p2,p3,b1,b2,b3,e1,e2,e3,pg1,pg2,pg3,ncol=3  )
+ggsave("densityvscoding.jpeg", s1,bg = "white")
+
+
+g1 <- ggplot(noise_combined[noise_combined$type=="noise",],aes(x=pgap_coding_len,color=pallet[4]))+
+        geom_density(alpha=.5,fill=pallet[4])
+g2 <- g1+geom_density(data= noise_combined[noise_combined$type=="noise",], aes(x= eggnog_coding_len,color=pallet[3],fill=pallet[3]),alpha=.25)+theme_minimal()+theme(legend.position = "none")
+g3<- g2+geom_density(data= noise_combined[noise_combined$type=="noise",], aes(x= bakta_coding_len,color=pallet[2],fill=pallet[2]),alpha=.5)
+n1s2 <- g3+geom_density(data= noise_combined[noise_combined$type=="noise",], aes(x= prokka_coding_len, color=pallet[1],fill=pallet[1]),alpha=.5)
+
+
+g1 <- ggplot(noise_combined[noise_combined$type=="noise2",],aes(x=pgap_coding_len,color=pallet[4]))+
+        geom_density(alpha=.5,fill=pallet[4])
+g2 <- g1+geom_density(data= noise_combined[noise_combined$type=="noise2",], aes(x= eggnog_coding_len,color=pallet[3],fill=pallet[3]),alpha=.25)+theme_minimal()+theme(legend.position = "none")
+g3<- g2+geom_density(data= noise_combined[noise_combined$type=="noise2",], aes(x= bakta_coding_len,color=pallet[2],fill=pallet[2]),alpha=.5)
+n2s2 <- g3+geom_density(data= noise_combined[noise_combined$type=="noise2",], aes(x= prokka_coding_len, color=pallet[1],fill=pallet[1]),alpha=.5)
+
+g1 <- ggplot(noise_combined[noise_combined$type=="noise3",],aes(x=pgap_coding_len,color=pallet[4]))+
+        geom_density(alpha=.5,fill=pallet[4])
+g2 <- g1+geom_density(data= noise_combined[noise_combined$type=="noise3",], aes(x= eggnog_coding_len,color=pallet[3],fill=pallet[3]),alpha=.25)+theme_minimal()+theme(legend.position = "none")
+g3<- g2+geom_density(data= noise_combined[noise_combined$type=="noise3",], aes(x= bakta_coding_len,color=pallet[2],fill=pallet[2]),alpha=.5)
+n3s2  <-g3+geom_density(data= noise_combined[noise_combined$type=="noise3",], aes(x= prokka_coding_len,color=pallet[2],fill=pallet[2]),alpha=.5)
+
+a2 <- grid.arrange(n1s2,n2s2,n3s2,ncol=3)
+ggsave("noise_coding_len.jpeg", s1,bg = "white")
+
+
+
+g1 <- ggplot(noise_combined[noise_combined$type=="noise",],aes(x=Pgapdensity))+
+        geom_density(alpha=.75,colour=pallet[4],fill=pallet[4])+
+	theme_minimal()+
+	scale_x_continuous(limits=c(0,3.5))
+g2 <- g1+geom_density(data= noise_combined[noise_combined$type=="noise",], aes(x= Prokkadensity),alpha=.75,colour=pallet[1],fill=pallet[1])+
+		      theme_minimal()+
+			scale_x_continuous(limits=c(0,3.5))
+g3<- g2+geom_density(data= noise_combined[noise_combined$type=="noise",], aes(x= Baktadensity),alpha=.75,colour=pallet[2],fill=pallet[2])+
+	theme_minimal()+
+	scale_x_continuous(limits = c(0,3.5))
+s1<- g3+geom_density(data= noise_combined[noise_combined$type=="noise",], aes(x= Eggdensity),alpha=.75,colour=pallet[3],fill=pallet[3])+
+	theme_minimal()+
+	scale_x_continuous(limits = c(0,3.5))
+
+g1 <- ggplot(noise_combined[noise_combined$type=="noise2",],aes(x=Pgapdensity))+
+        geom_density(alpha=.75,colour=pallet[4],fill=pallet[4])+
+	theme_minimal()+
+	scale_x_continuous(limits=c(0,3.5))
+g2 <- g1+geom_density(data= noise_combined[noise_combined$type=="noise2",], aes(x= Prokkadensity),alpha=.75,colour=pallet[1],fill=pallet[1])+
+		      theme_minimal()+
+			scale_x_continuous(limits =c(0,3.5))
+g3<- g2+geom_density(data= noise_combined[noise_combined$type=="noise2",], aes(x= Baktadensity),alpha=.75,colour=pallet[2],fill=pallet[2])+
+	theme_minimal()+
+	scale_x_continuous(limits = c(0,3.5))
+s2<- g3+geom_density(data= noise_combined[noise_combined$type=="noise2",], aes(x= Eggdensity),alpha=.75,colour=pallet[3],fill=pallet[3])+
+	theme_minimal()+
+	scale_x_continuous(limits=c(0,3.5))
+
+g1 <- ggplot(noise_combined[noise_combined$type=="noise3",],aes(x=Pgapdensity))+
+        geom_density(alpha=.75,colour=pallet[4],fill=pallet[4])+
+	theme_minimal()+
+	scale_x_continuous(limits=c(0,3.5))
+g2 <- g1+geom_density(data= noise_combined[noise_combined$type=="noise3",], aes(x= Prokkadensity),alpha=.75,colour=pallet[1],fill=pallet[1])+
+		      theme_minimal()+
+			scale_x_continuous(limits=c(0,3.5))
+g3<- g2+geom_density(data= noise_combined[noise_combined$type=="noise3",], aes(x= Baktadensity),alpha=.75,colour=pallet[2],fill=pallet[2])+
+	theme_minimal()+
+	scale_x_continuous(limits = c(0,3.5))
+s3<- g3+geom_density(data= noise_combined[noise_combined$type=="noise3",], aes(x= Eggdensity),alpha=.75,colour=pallet[3],fill=pallet[3])+
+	theme_minimal()+
+	scale_x_continuous(limits = c(0,3.5))
+a3 <- ggarrange(s1,s2,s3,ncol=3)
+ggsave("noise_density.jpeg",s3,bg="white")
+
+b1 <- ggarrange(a2+clean_theme(),a1,a3+clean_theme())
+
+
+b1 <- ggarrange(a2+clean_theme(),NULL,a1,a3+clean_theme()+rotate(),
+ncol=2,nrow=2,align="hv",widths=c(2,1),heights = c(1,2))
+
+ggsave("hypdensity.jpeg", a1, bg = "white")
+
+
+# Stability NCBI old PGAP 
+as.Date(ecoli$ncbi_date, format="%Y-%m-%d")
+ecoli$ncbi_date  <- as.Date(ecoli$ncbi_date,format="%Y-%m-%d")
+ggplot(ecoli[], aes(x=ncbi_date,y=`ncbi_protein_count`))+
+        geom_line()
+
+```
