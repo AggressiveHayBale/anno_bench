@@ -1,0 +1,864 @@
+# Analysis Report
+===============
+
+```{r, echo=FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(gridExtra)
+library(ggpubr)
+library(RColorBrewer)
+pallet <- brewer.pal(5,"Set1")
+
+#data import
+r1 <- read_csv("/mnt/6TB_1/annobench_reports/referential/final_report_batch1/original_report_batch1.csv")
+r2 <- read_csv("/mnt/6TB_1/annobench_reports/referential/final_report_batch2/collected_original_fasta_report.csv")
+r3 <- read_csv("/mnt/6TB_1/annobench_reports/referential/final_report_batch3/collected_original_fasta_report.csv")
+r4 <- read_csv("/mnt/6TB_1/annobench_reports/referential/final_report_batch4/collected_original_fasta_report.csv")
+referential <- rbind(r1,r2,r3,r4)
+
+#Metadata
+metadata <- read_delim("/mnt/6TB_1/gits/genome_download/bac120_metadata/bac120_metadata_r207.tsv",
+                       delim = "\t", escape_double = FALSE,
+                       trim_ws = TRUE)
+#IGM 
+igm_tmp1 <- read_tsv("/mnt/6TB_1/annobench_reports/igm_batch1_ref.txt")
+igm_tmp2 <- read_tsv("/mnt/6TB_1/annobench_reports/igm_batch2_ref.txt")
+igm_tmp3 <- read_tsv("/mnt/6TB_1/annobench_reports/igm_level1_ref.txt")
+igm_tmp3 <- igm_tmp3 [,c(intersect(colnames(igm_tmp3),colnames(igm_tmp2[,-41])))]
+igm_tmp3$`Is Public` <- NA
+igm <- rbind(igm_tmp1,igm_tmp2[,-41],igm_tmp3[,c(intersect(colnames(igm_tmp3),colnames(igm_tmp2[,-41])))])
+names(igm) <- gsub(" ", ".", names(igm))
+names(referential) <- gsub(" ", ".", names(referential))
+names(metadata) <- gsub(" ", ".", names(metadata))
+ref<-merge(referential, metadata, by.x= "id", by.y="ncbi_genbank_assembly_accession", all.x = TRUE, all.y = FALSE)
+ref<-merge(ref, igm, by.x= "id", by.y="NCBI.Assembly.Accession", all.x = TRUE, all.y = FALSE)
+
+#Genome size 
+gen_size <- read_csv("/mnt/6TB_1/annobench_reports/referential/ref_word_counts.txt",col_names = FALSE)
+colnames(gen_size) <-c("id","gensize_manual")
+ref <- merge(ref,gen_size,by.x="id",by.y="id")
+
+#Manual coding lenght
+coding_length_org <- read_csv("/mnt/6TB_1/annobench_reports/referential/dens_ref_final_report/dens_collected_original_fasta_report.csv")
+coding_length_org_pgap <- read_csv("/mnt/6TB_1/annobench_reports/referential/pgap_ref_density_final_report/dens_pgap_collected_original_fasta_report.csv")
+coding_length_org <-  merge(coding_length_org[,1:4],coding_length_org_pgap,by="Accession")
+colnames(coding_length_org)<-c("id","prokka_coding_len","bakta_coding_len","eggnog_coding_len","pgap_coding_len") 
+ref <- merge(ref,coding_length_org,by.x="id",by.y="id")
+
+```
+
+```{r}
+#Taxonomy 
+ref$taxonomy <- strsplit(ref$ncbi_taxonomy,";")
+ref$phylium <- sapply(ref$taxonomy, function(x) x[[2]])
+ref$class <- sapply(ref$taxonomy, function(x) x[[3]])
+ref$order<- sapply(ref$taxonomy, function(x) x[[4]])
+ref$family<- sapply(ref$taxonomy, function(x) x[[5]])
+ref$genus<- sapply(ref$taxonomy, function(x) x[[6]])
+```
+Original db file: 14243
+
+Sample count: `r length(referential$id)`
+
+Length of GTDB database to annotated samples:`r length(intersect(metadata$ncbi_genbank_assembly_accession,referential$id))`
+
+Length of IGM database to annotated samples:`r length(intersect(igm$NCBI.Assembly.Accession,referential$id))`
+
+```{r}
+# NOTE: Gene count 
+
+#Total gene count
+select(ref,c(Prokka.gene.count,Bakta.gene.count,EGGnog.gene.count,PGAP.gene.count)) %>% summary()
+select(ref,c(Prokka.gene.count,Bakta.gene.count,EGGnog.gene.count,PGAP.gene.count)) %>% pairs()
+
+g <- ggplot(ref,aes(Prokka.gene.count,PGAP.gene.count))+ 
+	geom_point()
+g+geom_point(data = filter(ref,phylium=="p__Tenericutes"),aes(Prokka.gene.count,PGAP.gene.count,
+							      colour="red"))
+
+#Hypotetical gene count
+select(ref,c(Prokka.hypothetical.genes,Bakta.hypothetical.genes,EGGnog.hypothetical.genes,PGAP.hypothetical.genes)) %>% summary()
+select(ref,c(Prokka.hypothetical.genes,Bakta.hypothetical.genes,EGGnog.hypothetical.genes,PGAP.hypothetical.genes)) %>% pairs()
+
+#Hypotetical gene count %
+select(ref,c(`Prokka.hypothetical.genes(%)`,`Bakta.hypothetical.genes(%)`,`EGGnog.hypothetical.genes(%)`,`PGAP.hypothetical.genes(%)`)) %>% summary()
+select(ref,c(`Prokka.hypothetical.genes(%)`,`Bakta.hypothetical.genes(%)`,`EGGnog.hypothetical.genes(%)`,`PGAP.hypothetical.genes(%)`)) %>% pairs()
+
+# Exploration of differences between Bakta and PGAP
+g <- ggplot(data = ref, aes(`Bakta.hypothetical.genes(%)`,`PGAP.hypothetical.genes(%)`))+
+        geom_point(aes())
+g1<-g+ geom_point(data = filter(ref,ncbi_genome_category=="derived from metagenome"),aes(colour="metagenome"))
+g1 + geom_point(data = filter(ref,phylium=="p__Tenericutes"),aes(colour="Phylium Tenericutes"))
+
+```
+```{r}
+#TODO: Experiments 
+#NOTE: Genecount vs Hyps 
+g  <- ggplot(data=ref , aes(x=Prokka.gene.count, y=`Prokka.hypothetical.genes(%)`)) + 
+            geom_point() +
+            scale_x_continuous(limits=c(0,20000))+
+            scale_y_continuous(limits=c(0,100))+
+                theme_minimal()
+g1<-g+ geom_point(data = filter(ref,ncbi_genome_category=="derived from metagenome"),aes(colour="metagenome"))
+p <- g1 + geom_point(data = filter(ref,phylium=="p__Tenericutes"),aes(colour="Phylium Tenericutes"))
+g  <- ggplot(data=ref , aes(x=Bakta.gene.count, y=`Bakta.hypothetical.genes(%)`)) + 
+            geom_point() +
+            scale_x_continuous(limits=c(0,20000))+
+            scale_y_continuous(limits=c(0,100))+
+            theme_minimal()
+g1<-g+ geom_point(data = filter(ref,ncbi_genome_category=="derived from metagenome"),aes(colour="metagenome"))
+b <- g1 + geom_point(data = filter(ref,phylium=="p__Tenericutes"),aes(colour="Phylium Tenericutes"))
+g  <- ggplot(data=ref , aes(x=EGGnog.gene.count, y=`EGGnog.hypothetical.genes(%)`)) + 
+            geom_point() +
+            scale_x_continuous(limits=c(0,20000))+
+            scale_y_continuous(limits=c(0,100))+
+            theme_minimal()
+g1<-g+ geom_point(data = filter(ref,ncbi_genome_category=="derived from metagenome"),aes(colour="metagenome"))
+e <- g1 + geom_point(data = filter(ref,phylium=="p__Tenericutes"),aes(colour="Phylium Tenericutes"))
+g  <- ggplot(data=ref , aes(x=PGAP.gene.count, y=`PGAP.hypothetical.genes(%)`)) + 
+            geom_point() +
+            scale_x_continuous(limits=c(0,20000))+
+            scale_y_continuous(limits=c(0,100))+
+            theme_minimal()
+g1<-g+ geom_point(data = filter(ref,ncbi_genome_category=="derived from metagenome"),aes(colour="metagenome"))
+pg <- g1 + geom_point(data = filter(ref,phylium=="p__Tenericutes"),aes(colour="Phylium Tenericutes"))
+
+ggsave("3.jpeg",ggarrange(p,b,e,pg,ncol=1),bg="white")
+
+#NOTE: Composition plot 
+
+plot_tmp <- NULL
+plot_tmp <-  select(ref,3:14, prokka_coding_len,bakta_coding_len,eggnog_coding_len,pgap_coding_len,genome_size,51:55,18:26)
+plot_tmp$prokka_coding_len_prop <- plot_tmp$prokka_coding_len/plot_tmp$genome_size
+plot_tmp$bakta_coding_len_prop <- plot_tmp$bakta_coding_len/plot_tmp$genome_size
+plot_tmp$eggnog_coding_len_prop<- plot_tmp$eggnog_coding_len/plot_tmp$genome_size
+plot_tmp$pgap_coding_len_prop <- plot_tmp$pgap_coding_len/plot_tmp$genome_size
+
+
+plot_tmp$prokka_hyptot <- plot_tmp$prokka_coding_len_prop*(plot_tmp$`Prokka.hypothetical.genes(%)`/100)
+plot_tmp$bakta_hyptot <- plot_tmp$bakta_coding_len_prop*(plot_tmp$`Bakta.hypothetical.genes(%)`/100)
+plot_tmp$eggnog_hyptot <- plot_tmp$eggnog_coding_len_prop*(plot_tmp$`EGGnog.hypothetical.genes(%)`/100)
+plot_tmp$pgap_hyptot <- plot_tmp$pgap_coding_len_prop*(plot_tmp$`EGGnog.hypothetical.genes(%)`/100)
+
+
+
+plot_data  <- data.frame(
+		group=c("Prokka","Bakta","EGGnog","PGAP"),
+		type = c("1Hypothetical genes","1Hypothetical genes","1Hypothetical genes","1Hypothetical genes","Annotated genes","Annotated genes","Annotated genes","Annotated genes"),
+		val=c(median(plot_tmp$prokka_hyptot),median(plot_tmp$bakta_hyptot),median(plot_tmp$eggnog_hyptot),median(plot_tmp$pgap_hyptot),median(plot_tmp$prokka_coding_len_prop-plot_tmp$prokka_hyptot),median(plot_tmp$bakta_coding_len_prop-plot_tmp$bakta_hyptot),median(plot_tmp$eggnog_coding_len_prop-plot_tmp$eggnog_hyptot),median(plot_tmp$pgap_coding_len_prop-plot_tmp$pgap_hyptot)))
+
+
+g1 <- ggplot(data = plot_data) +
+geom_bar(position='stack', stat='identity',mapping = aes(x = group,y=val ,fill = type))#+
+#coord_polar()
+
+example <- read_delim("/mnt/6TB_1/gits/anno_bench/results/GCA_000005825.2/bakta/original_GCA_000005825.2_bakta.gff3",
+                                          delim = "\t", escape_double = FALSE,
+                                          col_names = FALSE, comment = c("#"), trim_ws = TRUE)
+example<- invisible(na.omit(example))
+bakta <- mutate(as.data.frame(example),len = if_else(X3 == c("rRNA","tRNA"),X5-X4,0))
+rRNA_size <- bakta %>% filter(X3=="rRNA") %>% select(len)%>% summarise(mean(len)) %>% as.numeric()
+plot_tmp$prokka_rrna <- (rRNA_size*plot_tmp$Prokka.rRNA)/plot_tmp$genome_size*100
+plot_tmp$bakta_rrna <- (rRNA_size*plot_tmp$Bakta.rRNA)/plot_tmp$genome_size*100
+plot_tmp$pgap_rrna <- (rRNA_size*plot_tmp$PGAP.rRNA)/plot_tmp$genome_size*100
+
+tRNA_size <- bakta %>% filter(X3=="tRNA") %>% select(len)%>% summarise(mean(len)) %>% as.numeric()
+plot_tmp$prokka_trna <- (tRNA_size*plot_tmp$Prokka.tRNA)/plot_tmp$genome_size*100
+plot_tmp$bakta_trna <- (tRNA_size*plot_tmp$Bakta.tRNA)/plot_tmp$genome_size*100
+plot_tmp$pgap_trna <- (tRNA_size*plot_tmp$PGAP.tRNA)/plot_tmp$genome_size*100
+
+library(waffle)
+dat_prokka <- c(`Fully annotated coding length`=median(plot_tmp$prokka_coding_len_prop)-median(plot_tmp$prokka_hyptot)-median(plot_tmp$prokka_rrna)-median(plot_tmp$prokka_trna),
+		`Hypothetical genes coding length`=median(plot_tmp$prokka_hyptot),
+		`Noncoding genome length`=1-median(plot_tmp$prokka_coding_len_prop),`rRNA coding length`=median(plot_tmp$prokka_rrna),`tRNA coding length`=median(plot_tmp$prokka_trna))
+
+dat_bakta <- c(median(plot_tmp$bakta_coding_len_prop)-median(plot_tmp$bakta_hyptot)-median(plot_tmp$bakta_rrna)-median(plot_tmp$bakta_trna)
+	       ,median(plot_tmp$bakta_hyptot),1-median(plot_tmp$bakta_coding_len_prop),median(plot_tmp$bakta_rrna),median(plot_tmp$bakta_trna))
+
+dat_eggnog <- c(median(plot_tmp$eggnog_coding_len_prop)-median(plot_tmp$eggnog_hyptot),median(plot_tmp$eggnog_hyptot),1-median(plot_tmp$eggnog_coding_len_prop))
+
+dat_pgap <- c(`Fully annotated coding length`=median(plot_tmp$pgap_coding_len_prop)-median(plot_tmp$pgap_hyptot)-median(plot_tmp$bakta_rrna)-median(plot_tmp$pgap_trna)
+	      ,`Hypothetical genes coding length`=median(plot_tmp$pgap_hyptot),`Noncoding genome length`=1-median(plot_tmp$pgap_coding_len_prop),`rRNA coding length`=median(plot_tmp$pgap_rrna),median(plot_tmp$pgap_trna))
+
+p1 <-waffle(100*dat_prokka,rows=10,flip = TRUE)+theme(legend.position = "none") +
+	labs(y=paste0("Gene count: ",median(ref$Prokka.gene.count)),title = "Prokka")
+b1 <- waffle(100*dat_bakta,rows=10,flip = TRUE)+theme(legend.position = "none")+
+  labs(y=paste0("Gene count: ",median(ref$Bakta.gene.count)),title = "Bakta")
+e1 <- waffle(100*dat_eggnog,rows=10,flip=TRUE)+theme(legend.position = "none")+
+  labs(y=paste0("Gene count: ",median(ref$EGGnog.gene.count)),title = "EGGnog-mapper")
+pg1 <- waffle(100*dat_pgap,rows=10,flip=TRUE  )+theme(legend.position = "none")+
+  labs(y=paste0("Gene count: ",median(ref$PGAP.gene.count)),title = "PGAP")
+ggarrange(p1,b1,e1,pg1, nrow=1, common.legend = TRUE, legend="right")
+
+ggsave("4.jpeg",ggarrange(p1,b1,e1,pg1, nrow=1, common.legend = TRUE, legend="right"),bg = "white")
+
+#TODO: Cool quality plot
+ref$Prokka.func.prop <- (ref$Prokka.gene.count-ref$Prokka.hypothetical.genes)/ref$Prokka.hypothetical.genes
+ref$Prokka_hyp_coding_len <- ref$prokka_coding_len*(ref$`Prokka.hypothetical.genes(%)`/100)
+ref$Prokka.func_coding_len_prop  <- (ref$prokka_coding_len-ref$Prokka_hyp_coding_len)/ref$Prokka_hyp_coding_len
+ref$Prokka.func.protein.len.prop <- ref$Prokka.protein.lenght/ref$Prokka.hypothetical.protein.lenght
+
+g1 <- ggplot(data=ref , aes(x=Prokka.func.protein.len.prop,  y=Prokka.func_coding_len_prop)) + 
+	    geom_point() +
+	        theme_minimal()
+
+ref$Bakta.func.prop <- (ref$Bakta.gene.count-ref$Bakta.hypothetical.genes)/ref$Bakta.hypothetical.genes
+ref$Bakta_hyp_coding_len <- ref$bakta_coding_len*(ref$`Bakta.hypothetical.genes(%)`/100)
+ref$Bakta.func_coding_len_prop  <- (ref$bakta_coding_len-ref$Bakta_hyp_coding_len)/ref$Bakta_hyp_coding_len
+ref$Bakta.func.protein.len.prop <- ref$Bakta.protein.lenght/ref$Bakta.hypothetical.protein.lenght
+
+g2 <-g1+ geom_point(data=ref , aes(x=Bakta.func.protein.len.prop,  y=Bakta.func_coding_len_prop)) + 
+	        theme_minimal()
+
+ref$EGGnog.func.prop <- (ref$EGGnog.gene.count-ref$EGGnog.hypothetical.genes)/ref$EGGnog.hypothetical.genes
+ref$EGGnog_hyp_coding_len <- ref$eggnog_coding_len*(ref$`EGGnog.hypothetical.genes(%)`/100)
+ref$EGGnog.func_coding_len_prop  <- (ref$eggnog_coding_len-ref$EGGnog_hyp_coding_len)/ref$EGGnog_hyp_coding_len
+ref$EGGnog.func.protein.len.prop <- ref$EGGnog.protein.lenght/ref$EGGnog..hypothetical.protein.lenght
+
+g3 <-g2+ geom_point(data=ref , aes(x=EGGnog.func.protein.len.prop,  y=EGGnog.func_coding_len_prop)) + 
+	        theme_minimal()
+
+ref$PGAP.func.prop <- (ref$PGAP.gene.count-ref$PGAP.hypothetical.genes)/ref$PGAP.hypothetical.genes
+ref$PGAP_hyp_coding_len <- ref$eggnog_coding_len*(ref$`PGAP.hypothetical.genes(%)`/100)
+ref$PGAP.func_coding_len_prop  <- (ref$eggnog_coding_len-ref$PGAP_hyp_coding_len)/ref$PGAP_hyp_coding_len
+ref$PGAP.func.protein.len.prop <- ref$PGAP.protein.lenght/ref$PGAP.hypothetical.protein.lenght
+
+g4 <- g3+geom_point(data=ref , aes(x=PGAP.func.protein.len.prop,  y=PGAP.func_coding_len_prop)) + 
+	        theme_minimal()
+g4
+ggsave("5.jpeg",ggarrange(g1,g2,g3,g4,ncol = 4),bg="white")
+
+out_be_gone  <- function(dat, co){
+ifelse(co> (quantile(co,.25)-1.5*IQR(co))& co < (quantile(co,.75)+1.5*IQR(co)),co,NA) 
+}
+
+#FIX: TEMP TO MAKE CODE WORK
+ref$Bakta.func.protein.len.prop[is.na(ref$Bakta.func.protein.len.prop)] <- 0
+
+ref$Prokka.func.protein.len.prop.trimmed <- out_be_gone(ref,ref$Prokka.func.protein.len.prop)
+ref$Bakta.func.protein.len.prop.trimmed <- out_be_gone(ref,ref$Bakta.func.protein.len.prop)
+ref$EGGnog.func.protein.len.prop.trimmed <- out_be_gone(ref,ref$EGGnog.func.protein.len.prop)
+ref$PGAP.func.protein.len.prop.trimmed <- out_be_gone(ref,ref$PGAP.func.protein.len.prop)
+
+ref$Prokka.func_coding_len_prop_trimmed <- out_be_gone(ref,ref$Prokka.func_coding_len_prop)
+ref$Bakta.func_coding_len_prop_trimmed <- out_be_gone(ref,ref$Bakta.func_coding_len_prop)
+ref$EGGnog.func_coding_len_prop_trimmed <- out_be_gone(ref,ref$EGGnog.func_coding_len_prop)
+ref$PGAP.func_coding_len_prop_trimmed <- out_be_gone(ref,ref$PGAP.func_coding_len_prop)
+
+
+quality  <- data.frame(type=c(rep("prokka",length(ref$Prokka.func.protein.len.prop)),rep("bakta",length(ref$Bakta.func.protein.len.prop)),rep("eggnog",length(ref$EGGnog.func.protein.len.prop)),rep("pgap",length(ref$PGAP.func.protein.len.prop))),func.protein.len=c(ref$Prokka.func.protein.len.prop.trimmed,ref$Bakta.func.protein.len.prop.trimmed,ref$EGGnog.func.protein.len.prop.trimmed,ref$PGAP.func.protein.len.prop.trimmed),func.coding.len.prop=c(ref$Prokka.func_coding_len_prop_trimmed,ref$Bakta.func_coding_len_prop_trimmed,ref$EGGnog.func_coding_len_prop_trimmed,ref$PGAP.func_coding_len_prop_trimmed),size=c(ref$Prokka.gene.count,ref$Bakta.gene.count,ref$EGGnog.gene.count,ref$PGAP.gene.count))
+
+library(scales)
+library(hrbrthemes)
+library(viridis)
+quality$func.protein.len_scaled <- rescale(quality$func.protein.len,c(-1,1))
+quality$func.coding.len.prop_scaled<- rescale(quality$func.coding.len.prop ,c(-1,1))
+
+
+quality_plot<- ggplot(data=quality , aes(x=func.protein.len_scaled, y=func.coding.len.prop_scaled,color=type, size=size)) + 
+	    geom_point(size=1)+
+	    geom_vline(xintercept = 0) + 
+	    geom_hline(yintercept = 0)+ 
+	    scale_fill_viridis(discrete=TRUE,aesthetics = c("color"),option= "D") +
+	    theme_bw()
+quality_plot
+
+
+quality_nobakta  <- quality %>% filter(type != "bakta") 
+quality_nobakta[nrow(quality_nobakta)+1,]<- c("bakta",NA,NA,NA,NA,NA)
+quality_nobakta$func.coding.len.prop_scaled<- rescale(as.numeric(quality_nobakta$func.coding.len.prop),c(-1,1))
+quality_nobakta$func.protein.len_scaled <- rescale(as.numeric(quality_nobakta$func.protein.len),c(-1,1))
+quality_nobakta_plot <- ggplot(data=quality_nobakta, aes(x=func.protein.len_scaled, y=func.coding.len.prop_scaled,color=type, size=size)) + 
+	    geom_point(size=1,alpha=1)+
+	    geom_vline(xintercept = 0) + 
+	    geom_hline(yintercept = 0)+ 
+    scale_fill_viridis(discrete=TRUE,aesthetics = c("color"),option= "D") +
+    theme_minimal()
+q <- quality_nobakta_plot+ annotation_custom(ggplotGrob(quality_plot+theme(legend.position = "none",axis.title.x= element_blank(),axis.title.y= element_blank()  )),ymin = 0.5,ymax=1.1,xmin = 0,xmax = 1.1)
+
+ggsave("6.jpeg",q,bg = "white")
+
+
+
+#TODO: REALLY COOL TAX PLOT
+
+p  <- ggplot(data=ref) + 
+        geom_point(aes(x=phylium,y=(prokka_coding_len/genome_size),color=`Prokka.hypothetical.genes(%)`,size=genome_size)) +
+        scale_y_continuous(limits = c(0,1))+
+        coord_polar()
+ggsave("7.jpeg",p)
+
+
+b <- ggplot(data=ref) + 
+        geom_point(aes(x=phylium,y=(bakta_coding_len/genome_size),color=`Bakta.hypothetical.genes(%)`,size=genome_size)) +
+        scale_y_continuous(limits = c(0,1))+
+        coord_polar()
+ggsave("8.jpeg",b)
+
+e <- ggplot(data=ref) + 
+        geom_point(aes(x=phylium,y=(eggnog_coding_len/genome_size),color=`EGGnog.hypothetical.genes(%)`,size=genome_size)) +
+        scale_y_continuous(limits = c(0,1))+
+        coord_polar()
+ggsave("9.jpeg",e)
+
+pg <- ggplot(data=ref) + 
+        geom_point(aes(x=phylium,y=(pgap_coding_len/genome_size),color=`PGAP.hypothetical.genes(%)`,size=genome_size)) +
+        scale_y_continuous(limits = c(0,1))+
+        coord_polar()
+ggsave("10.jpeg",b)
+
+#FIX: BETTER
+# Reversed 
+
+ref$phylium  <- sub("p__","",ref$phylium)
+
+ref$class <- sub("c__","",ref$class)
+
+
+p  <- ggplot(data=ref) + 
+        geom_point(aes(x=phylium,color=(prokka_coding_len/genome_size),y=`Prokka.hypothetical.genes(%)`),size=1) +
+        scale_y_continuous(limits = c(0,100))+
+        coord_polar()+
+         theme(axis.text.y = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave("7.jpeg",p, height = 14,width = 14)
+
+
+b <- ggplot(data=ref) + 
+        geom_point(aes(x=phylium,color=(bakta_coding_len/genome_size),y=`Bakta.hypothetical.genes(%)`),size=1) +
+        scale_y_continuous(limits = c(0,100))+
+        coord_polar()
+ggsave("8.jpeg",b,height =14,width = 14)
+
+e <- ggplot(data=ref) + 
+        geom_point(aes(x=phylium,color=(eggnog_coding_len/genome_size),y=`EGGnog.hypothetical.genes(%)`),size=1.4) +
+        scale_y_continuous(limits = c(0,100))+
+        coord_polar()
+ggsave("9.jpeg",e,height =14,width = 14)
+
+pg <- ggplot(data=ref) + 
+        geom_point(aes(x=phylium,color=(pgap_coding_len/genome_size),y=`PGAP.hypothetical.genes(%)`),size=1) +
+        scale_y_continuous(limits = c(0,100))+
+        coord_polar()
+ggsave("10.jpeg",pg,height =14,width = 14)
+
+# FIX: Binned Canditatus
+ref$phylium[grepl("Candidatus", ref$phylium, ignore.case = TRUE)] <- "Candidatus"
+p  <- ggplot(data=ref) + 
+        geom_point(aes(x=phylium,color=(prokka_coding_len/genome_size),y=`Prokka.hypothetical.genes(%)`),size=1) +
+        scale_y_continuous(limits = c(0,100))+
+        coord_polar()+
+         theme(axis.text.y = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave("7.jpeg",p, height = 14,width = 14)
+
+b <- ggplot(data=ref) + 
+        geom_point(aes(x=phylium,color=(bakta_coding_len/genome_size),y=`Bakta.hypothetical.genes(%)`),size=1) +
+        scale_y_continuous(limits = c(0,100))+
+        coord_polar()
+ggsave("8.jpeg",b,height =14,width = 14)
+
+e <- ggplot(data=ref) + 
+        geom_point(aes(x=phylium,color=(eggnog_coding_len/genome_size),y=`EGGnog.hypothetical.genes(%)`),size=1.4) +
+        scale_y_continuous(limits = c(0,100))+
+        coord_polar()
+ggsave("9.jpeg",e,height =14,width = 14)
+
+pg <- ggplot(data=ref) + 
+        geom_point(aes(x=phylium,color=(pgap_coding_len/genome_size),y=`PGAP.hypothetical.genes(%)`),size=1) +
+        scale_y_continuous(limits = c(0,100))+
+        coord_polar()
+ggsave("10.jpeg",pg,height =14,width = 14)
+
+#NOTE: Class 
+
+
+p  <- ggplot(data=ref) +
+geom_col(aes(
+        x = class,
+        y = 100,
+        fill = phylium),
+        position = "dodge2",
+        show.legend = FALSE,
+        alpha = .1)+    
+geom_point(aes(
+               x=class,color=(prokka_coding_len/genome_size),y=`Prokka.hypothetical.genes(%)`),size=1) +
+        scale_y_continuous(limits = c(0,100))+
+coord_polar(clip="off")+
+theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=1))+
+geom_hline(
+    aes(yintercept = y), 
+    data.frame(y = c(0:4) * 25),
+    color = "lightgrey"
+  ) +
+annotate(
+    x = 0, 
+    y = 25, 
+    label = "25%", 
+    geom = "text", 
+    color = "gray12", 
+    family = "Bell MT"
+  )+ 
+annotate(
+    x = 0, 
+    y = 50, 
+    label = "50%", 
+    geom = "text", 
+    color = "gray12", 
+    family = "Bell MT"
+  )+ 
+annotate(
+    x = 0, 
+    y = 75, 
+    label = "75%", 
+    geom = "text", 
+    color = "gray12", 
+    family = "Bell MT"
+  )+
+annotate(
+    x = 0, 
+    y = 100, 
+    label = "100%", 
+    geom = "text", 
+    color = "gray12", 
+    family = "Bell MT"
+  )+
+  theme(
+    plot.title = element_text(face = "bold", size = 25, hjust = 0.05),
+    plot.subtitle = element_text(size = 14, hjust = 0.05),
+    plot.caption = element_text(size = 10, hjust = .5),
+    panel.background = element_rect(fill = "white", color = "white"),
+    panel.grid = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text.y = element_blank(),
+    legend.position = "bottom"
+  )+
+labs(
+    title = "\n Prokka Hypotetical genes %")
+
+
+
+ggsave("7.jpeg",p, height = 14,width = 14)
+
+
+
+```
+
+```{r}
+# NOTE: Gene length
+select(ref,Prokka.total.protein.lenght, Bakta.total.protein.lenght, EGGnog.total.protein.lenght, PGAP.total.protein.lenght)%>%summary()
+select(ref,Prokka.total.protein.lenght, Bakta.total.protein.lenght, EGGnog.total.protein.lenght, PGAP.total.protein.lenght)%>%pairs()
+
+g <- ggplot(ref,aes(Bakta.total.protein.lenght,PGAP.total.protein.lenght))+ 
+	geom_point()
+g+geom_point(data = filter(ref,phylium=="p__Tenericutes"),aes(Bakta.total.protein.lenght,PGAP.total.protein.lenght,colour="red"))
+
+```
+```{r}
+# NOTE: Total protein count vs Total protein length
+
+ggplot(ref,aes(Prokka.gene.count,Prokka.total.protein.lenght))+
+        geom_point(aes(color= order),show.legend = FALSE)
+# More in detail outlook
+ggplot(filter(ref, Prokka.gene.count<2500 & Prokka.total.protein.lenght<200),aes(Prokka.gene.count,Prokka.total.protein.lenght))+
+        geom_point(aes(color= order))
+ggplot(ref,aes(Bakta.gene.count,Bakta.total.protein.lenght))+
+        geom_point(aes(color= order),show.legend = FALSE)
+ggplot(ref,aes(EGGnog.gene.count,EGGnog.total.protein.lenght))+
+         geom_point(aes(color= order),show.legend = FALSE)
+
+ggplot(ref,aes(PGAP.gene.count,PGAP.total.protein.lenght))+
+        geom_point(aes(color= order),show.legend = FALSE)
+
+```
+
+
+
+
+```{r}
+# NOTE: Gene density
+
+#Total gene count density
+ref$Prokkadensity <- (ref$Prokka.gene.count/ref$gensize_manual)*1000
+ref$Baktadensity <- (ref$Bakta.gene.count/ref$gensize_manual)*1000
+ref$Eggdensity<- (ref$EGGnog.gene.count/ref$gensize_manual)*1000
+ref$Pgapdensity <- (ref$PGAP.gene.count/ref$gensize_manual)*1000
+ref$Reporteddenisty <- (ref$protein_count/ref$gensize_manual)*1000
+ref$Igmdensity  <-  (ref$`Gene.Count...*.assembled`/ref$gensize_manual)*1000
+select(ref,c(Prokkadensity,Baktadensity, Eggdensity, Pgapdensity, Igmdensity))%>% summary()
+select(ref,c(Prokkadensity,Baktadensity, Eggdensity, Pgapdensity, Igmdensity))%>% pairs()
+
+ggplot(ref[],aes(Baktadensity,Pgapdensity))+
+        geom_point(aes(colour=phylium),show.legend = FALSE)
+# Zoom to separate group
+ggplot(ref[ref$Baktadensity>1.5,],aes(Baktadensity,Pgapdensity))+
+        geom_point(aes(colour=phylium),show.legend = TRUE)
+g <- ggplot(ref,aes(Baktadensity,Pgapdensity))+
+	geom_point()
+g+ geom_point(data=ref[ref$phylium == "p__Tenericutes",],aes(Baktadensity,Pgapdensity,colour=order))
+
+
+#Hypothetical gene count density 
+ref$Prokkadensity_hyp <- (ref$Prokka.hypothetical.genes/ref$gensize_manual)*1000
+ref$Baktadensity_hyp <- (ref$Bakta.hypothetical.genes/ref$gensize_manual)*1000
+ref$Eggdensity_hyp <- (ref$EGGnog.hypothetical.genes/ref$gensize_manual)*1000
+ref$Pgapdensity_hyp <- (ref$PGAP.hypothetical.genes/ref$gensize_manual)*1000
+ref$Igmdensity_hyp  <-  (ref$`w/o.function.prediction..*.assembled`/ref$gensize_manual)*1000
+select(ref,c(Prokkadensity_hyp,Baktadensity_hyp, Eggdensity_hyp, Pgapdensity_hyp, Igmdensity_hyp))%>% summary()
+select(ref,c(Prokkadensity_hyp,Baktadensity_hyp, Eggdensity_hyp, Pgapdensity_hyp, Igmdensity_hyp))%>% pairs()
+g <- ggplot(data = ref, aes(Pgapdensity_hyp,Baktadensity_hyp))+
+        geom_point(aes())
+g1<-g+ geom_point(data = filter(ref,ncbi_genome_category=="derived from metagenome"),aes(colour="red"))
+g1 + geom_point(data = filter(ref,phylium=="p__Tenericutes"),aes(colour="blue"))
+
+
+
+
+
+# FIX: THIS PROBABLY DOES NOT MAKE ANY SENSE!!!
+#Hypothetical gene count density(%) 
+ref$Prokkadensity_hyp_perc <- (ref$`Prokka.hypothetical.genes(%)`/ref$gensize_manual)*1000
+ref$Baktadensity_hyp_perc <- (ref$`Bakta.hypothetical.genes(%)`/ref$gensize_manual)*1000
+ref$Eggdensity_hyp_perc <- (ref$`EGGnog.hypothetical.genes(%)`/ref$gensize_manual)*1000
+ref$Pgapdensity_hyp_perc <- (ref$`PGAP.hypothetical.genes(%)`/ref$gensize_manual)*1000
+ref$Igmdensity_hyp_perc  <-  (ref$`w/o.function.prediction.%..*.assembled`/ref$gensize_manual)*1000
+select(ref,c(Prokkadensity_hyp,Baktadensity_hyp, Eggdensity_hyp, Pgapdensity_hyp, Igmdensity_hyp))%>% summary()
+select(ref,c(Prokkadensity_hyp_perc,Baktadensity_hyp_perc, Eggdensity_hyp_perc, Pgapdensity_hyp_perc, Igmdensity_hyp_perc))%>% pairs()
+```
+
+```{r}
+# NOTE: RNA 
+
+select(ref,Prokka.rRNA,Bakta.rRNA,PGAP.rRNA, ncbi_rrna_count, `rRNA.Count...*.assembled`)%>%summary()
+select(ref,Prokka.tRNA,Bakta.tRNA,PGAP.tRNA, ncbi_trna_count, `tRNA.Count...*.assembled`)%>%summary()
+select(ref,Prokka.tmRNA,Bakta.tmRNA,PGAP.tmRNA)%>% summary()
+
+```
+
+```{r}
+# NOTE: GO terms 
+summary(ref[,73:76])
+summary(ref[,77:80])
+summary(ref[,81:84])
+pairs(ref[,73:76])
+```
+```{r}
+# NOTE: Intersect start end position 
+ref %>% select(ends_with("intersect.start"))%>% pairs()
+ref %>% select(ends_with("intersect.end"))%>% pairs()
+```
+
+```{r}
+# FIX: Metadata 
+
+# NOTE: GC% 
+
+ggplot(ref, aes(Prokka.gene.count,gc_percentage))+ 
+	geom_point(aes(colour=phylium),show.legend = FALSE)
+ggplot(ref, aes(Bakta.gene.count,gc_percentage))+ 
+	geom_point()
+ggplot(ref, aes(EGGnog.gene.count,gc_percentage))+ 
+	geom_point()
+ggplot(ref, aes(PGAP.gene.count,gc_percentage))+ 
+	geom_point()
+
+#NOTE: Checkm contamination
+
+ggplot(ref, aes(Prokka.gene.count,checkm_contamination))+ 
+	geom_point(aes(colour=phylium),show.legend = FALSE)
+ggplot(ref, aes(Bakta.gene.count,checkm_contamination))+ 
+	geom_point()
+ggplot(ref, aes(EGGnog.gene.count,checkm_contamination))+ 
+	geom_point()
+ggplot(ref, aes(PGAP.gene.count,checkm_contamination))+ 
+	geom_point()
+
+ggplot(ref, aes(`Prokka.hypothetical.genes(%)`,checkm_contamination))+ 
+	geom_point(aes(colour=phylium),show.legend = FALSE)
+ggplot(ref, aes(`Bakta.hypothetical.genes(%)`,checkm_contamination))+ 
+	geom_point()
+ggplot(ref, aes(`EGGnog.hypothetical.genes(%)`,checkm_contamination))+ 
+	geom_point()
+ggplot(ref, aes(`PGAP.hypothetical.genes(%)`,checkm_contamination))+ 
+	geom_point()
+
+# NOTE: Selfcalculated genome size 
+plot(ref$gensize_manual,ref$genome_size) 
+plot(ref$ncbi_total_length,ref$genome_size)
+summary(ref$gensize_manual)
+summary(ref$genome_size)
+summary(ref$ncbi_total_length)
+# NOTE: Codinglength density 
+plot(ref$gensize_manual,ref$prokka_coding_len)
+plot(ref$gensize_manual,ref$bakta_coding_len)
+plot(ref$gensize_manual,ref$eggnog_coding_len)
+plot(ref$gensize_manual,ref$pgap_coding_len)
+pairs(ref[,c("prokka_coding_len","bakta_coding_len","eggnog_coding_len","pgap_coding_len")],)
+
+# Check of coding length density
+summary(ref$prokka_coding_len/ref$gensize_manual)
+summary(ref$bakta_coding_len/ref$gensize_manual)
+summary(ref$eggnog_coding_len/ref$gensize_manual)
+summary(ref$pgap_coding_len/ref$gensize_manual)
+
+ggplot(ref,aes(x = "", prokka_coding_len))+
+geom_violin()
+ggplot(ref,aes(x = "", bakta_coding_len))+
+geom_violin()
+ggplot(ref,aes(x = "", eggnog_coding_len))+
+geom_violin()
+ggplot(ref,aes(x = "", pgap_coding_len))+
+geom_violin()
+# Corelation between them 
+pairs(ref[,242:245])
+
+# WARN: Gene count vs coding length density
+ggplot(ref,aes(Bakta.gene.count , bakta_coding_len))+
+geom_point(aes(color= order), show.legend = FALSE)
+
+ggplot(filter(ref,eggnog_coding_len<1*10^6),aes(EGGnog.gene.count , eggnog_coding_len))+
+geom_point(aes(color= order), show.legend = TRUE)
+
+ggplot(ref,aes(PGAP.gene.count , pgap_coding_len))+
+geom_point(aes(color= order), show.legend = FALSE)
+
+ggplot(ref,aes(Prokka.hypothetical.genes, prokka_coding_len))+
+geom_point(aes(color= order), show.legend = FALSE)
+ggplot(ref,aes(Bakta.hypothetical.genes, bakta_coding_len))+
+geom_point(aes(color= order), show.legend = FALSE)
+ggplot(ref,aes(EGGnog.hypothetical.genes, eggnog_coding_len))+
+geom_point(aes(color= order), show.legend = FALSE)
+ggplot(ref,aes(PGAP.hypothetical.genes, pgap_coding_len))+
+geom_point(aes(color= order), show.legend = FALSE)
+# NOTE: Hyp% vs coding length
+ggplot(ref,aes(`Prokka.hypothetical.genes(%)`, prokka_coding_len))+
+geom_point(aes(color= order), show.legend = FALSE)
+ggplot(ref,aes(`Bakta.hypothetical.genes(%)`,bakta_coding_len))+
+geom_point(aes(color= order), show.legend = FALSE)
+ggplot(ref[ref$`Bakta.hypothetical.genes(%)`>25,],aes(`Bakta.hypothetical.genes(%)`,bakta_coding_len))+
+geom_point(aes(color= order), show.legend = FALSE)
+
+ggplot(ref,aes(`EGGnog.hypothetical.genes(%)`, eggnog_coding_len))+
+geom_point(aes(color= order), show.legend = FALSE)
+ggplot(ref,aes(`PGAP.hypothetical.genes(%)`, pgap_coding_len))+
+geom_point(aes(color= order), show.legend = FALSE)
+
+#NOTE:Other random checkcs 
+ggplot(ref,aes(gensize_manual,pgap_coding_len))+
+        geom_point(aes(color=ncbi_genome_category),show.legend=TRUE)
+
+# WARN: Metagenome
+
+# NOTE: Basic check
+table(ref$ncbi_genome_category)
+sum(str_detect(ref$ncbi_organism_name,"bin"))
+sum(str_detect(ref$ncbi_strain_identifiers,"bin"))
+# Too little observations in single cell and env. sample to matter 
+ref$ncbi_genome_category[ref$ncbi_genome_category=="derived from environmental sample"]  <- "none"
+ref$ncbi_genome_category[ref$ncbi_genome_category=="derived from single cell"]  <- "none"
+
+
+# NOTE: Density
+summary(lm(ref$Prokkadensity~ref$ncbi_genome_category))
+summary(lm(ref$Baktadensity~ref$ncbi_genome_category))
+summary(lm(ref$Eggdensity~ref$ncbi_genome_category))
+summary(lm(ref$Pgapdensity~ref$ncbi_genome_category))
+
+# NOTE:Density vs Metagenome (WARN: is it even important??????) 
+
+ggplot(ref[ref$ncbi_genome_category=="derived from metagenome",],aes(x = "", Prokkadensity))+
+geom_violin()
+
+ggplot(ref[ref$ncbi_genome_category=="derived from metagenome",],aes(x = "", Baktadensity))+
+geom_violin()
+
+ggplot(ref[ref$ncbi_genome_category=="derived from metagenome",],aes(x = "", Eggdensity))+
+geom_violin()
+
+ggplot(ref[ref$ncbi_genome_category=="derived from metagenome",],aes(x = "", Pgapdensity))+
+geom_violin()
+
+# NOTE: Metagenomes vs length
+
+# NOTE: Other metadata
+
+ecosystem.comparison <- ref %>% group_by(Ecosystem) %>% summarize(prokka=mean(Prokka.gene.count),bakta=mean(Bakta.gene.count), pgap=mean(PGAP.gene.count), eggnog=mean(EGGnog.gene.count))
+
+ecosystem.comparison$max <- colnames(ecosystem.comparison[,-1])[apply(ecosystem.comparison[,-1],1,which.max)]
+
+ecosystem.category.comparison <- ref %>% group_by(Ecosystem.Category) %>% summarize(prokka=mean(Prokka.gene.count),bakta=mean(Bakta.gene.count), pgap=mean(PGAP.gene.count), eggnog=mean(EGGnog.gene.count))
+
+ecosystem.category.comparison$max <- colnames(ecosystem.category.comparison[,-1])[apply(ecosystem.category.comparison[,-1],1,which.max)]
+
+cultured.comparison <- ref %>% group_by(Cultured) %>% summarize(prokka=mean(Prokka.gene.count),bakta=mean(Bakta.gene.count), pgap=mean(PGAP.gene.count), eggnog=mean(EGGnog.gene.count))
+
+cultured.comparison$max <- colnames(cultured.comparison[,-1])[apply(cultured.comparison[,-1],1,which.max)]
+
+
+gram.comparison <- ref %>% group_by(Gram.Staining) %>% summarize(prokka=mean(Prokka.gene.count),bakta=mean(Bakta.gene.count), pgap=mean(PGAP.gene.count), eggnog=mean(EGGnog.gene.count))
+
+gram.comparison$max <- colnames(gram.comparison[,-1])[apply(gram.comparison[,-1],1,which.max)]
+
+oxygen.comparison <- ref %>% group_by(Oxygen.Requirement) %>% summarize(prokka=mean(Prokka.gene.count),bakta=mean(Bakta.gene.count), pgap=mean(PGAP.gene.count), eggnog=mean(EGGnog.gene.count))
+
+oxygen.comparison$max <- colnames(oxygen.comparison[,-1])[apply(oxygen.comparison[,-1],1,which.max)]
+
+temperature.comparison <- ref %>% group_by(Temperature.Range) %>% summarize(prokka=mean(Prokka.gene.count),bakta=mean(Bakta.gene.count), pgap=mean(PGAP.gene.count), eggnog=mean(EGGnog.gene.count))
+
+temperature.comparison$max <- colnames(temperature.comparison[,-1])[apply(temperature.comparison[,-1],1,which.max)]
+
+model.prokka  <-  aov(`Prokka.hypothetical.genes(%)` ~ Cultured + Ecosystem + Gram.Staining + Oxygen.Requirement + Temperature.Range, data = ref)
+model.bakta   <-  aov(`Bakta.hypothetical.genes(%)` ~ Cultured + Ecosystem + Gram.Staining + Oxygen.Requirement + Temperature.Range, data = ref)
+model.eggnog   <-  aov(`EGGnog.hypothetical.genes(%)` ~ Cultured + Ecosystem + Gram.Staining + Oxygen.Requirement + Temperature.Range, data = ref)
+model.pgap   <-  aov(`PGAP.hypothetical.genes(%)` ~ Cultured + Ecosystem + Gram.Staining + Oxygen.Requirement + Temperature.Range, data = ref)
+model.reported   <-  aov(ncbi_protein_count~ Cultured + Ecosystem + Gram.Staining + Oxygen.Requirement + Temperature.Range, data = ref)
+model.igm   <-  aov(`w/.Func.Pred.%...*.assembled`~ Cultured + Ecosystem + Gram.Staining + Oxygen.Requirement + Temperature.Range, data = ref)
+
+
+summary(model.prokka)
+TukeyHSD(model.prokka)
+summary(model.bakta)
+TukeyHSD(model.bakta)
+summary(model.eggnog)
+TukeyHSD(model.eggnog)
+summary(model.pgap)
+TukeyHSD(model.pgap)
+summary(model.reported)
+TukeyHSD(model.reported)
+summary(model.igm)
+TukeyHSD(model.igm)
+
+
+```
+
+```{r}
+# NOTE: Taxonomy 
+
+#WARN: Order
+order.comp <- ref %>% select(ends_with("gene.count")| matches("order"))
+order.comparison <- order.comp %>% group_by(order) %>% summarize(ct= length(order),mean.prokka= mean(Prokka.gene.count), mean.bakta=mean(Bakta.gene.count), mean.pgap=mean(PGAP.gene.count), mean.eggnog=mean(EGGnog.gene.count))
+order.comparison$max.diff <- apply(order.comparison[,-c(1:2)], 1, function(x) diff(range(x)))
+order.comparison
+
+#WARN:Family 
+family.comp <- ref %>% select(ends_with("gene.count")| matches("family"))
+family.comparison <- family.comp %>% group_by(family) %>% summarize(ct= length(family),mean.prokka= mean(Prokka.gene.count), mean.bakta=mean(Bakta.gene.count), mean.pgap=mean(PGAP.gene.count), mean.eggnog=mean(EGGnog.gene.count))
+family.comparison$max.diff <- apply(family.comparison[,-c(1:2)], 1, function(x) diff(range(x)))
+family.comparison
+
+#WARN: Genus 
+ref$order<- sapply(ref$taxonomy, function(x) x[[4]])
+order.comp <- ref %>% select(ends_with("gene.count")| matches("order"))
+order.comparison <- order.comp %>% group_by(order) %>% summarize(ct= length(order),mean.prokka= mean(Prokka.gene.count), mean.bakta=mean(Bakta.gene.count), mean.pgap=mean(PGAP.gene.count), mean.eggnog=mean(EGGnog.gene.count))
+order.comparison$max.diff <- apply(order.comparison[,-c(1:4)], 1, function(x) diff(range(x)))
+order.comparison
+
+#WARN: Hyps | Order
+
+order.hyp.comp <- ref %>% select(ends_with("hypothetical.genes(%)")| matches("order"))
+order.hyp.comparison <- order.hyp.comp %>% group_by(order) %>% summarize(ct= length(order),mean.prokka= mean(`Prokka.hypothetical.genes(%)`), mean.bakta=mean(`Bakta.hypothetical.genes(%)`), mean.pgap=mean(`PGAP.hypothetical.genes(%)`), mean.eggnog=mean(`EGGnog.hypothetical.genes(%)`))
+order.hyp.comparison$smallest <- colnames(order.hyp.comparison[,-1:-2])[apply(order.hyp.comparison[,-1:-2],1,which.min)]
+order.hyp.comparison
+
+table(order.hyp.comparison$smallest)
+order.hyp.comparison %>% filter(smallest=="mean.pgap")
+
+
+#WARN: Hyps | Family
+family.hyp.comp <- ref %>% select(ends_with("hypothetical.genes(%)")| matches("family"))
+family.hyp.comparison <- family.hyp.comp %>% group_by(family) %>% summarize(ct= length(family),mean.prokka= mean(`Prokka.hypothetical.genes(%)`), mean.bakta=mean(`Bakta.hypothetical.genes(%)`), mean.pgap=mean(`PGAP.hypothetical.genes(%)`), mean.eggnog=mean(`EGGnog.hypothetical.genes(%)`))
+family.hyp.comparison$smallest <- colnames(family.hyp.comparison[,-1:-2])[apply(family.hyp.comparison[,-1:-2],1,which.min)]
+family.hyp.comparison
+
+#WARN: Hyps  | Genus 
+genus.hyp.comp <- ref %>% select(ends_with("hypothetical.genes(%)")| matches("genus"))
+genus.hyp.comparison <- genus.hyp.comp %>% group_by(genus) %>% summarize(ct= length(genus),mean.prokka= mean(`Prokka.hypothetical.genes(%)`), mean.bakta=mean(`Bakta.hypothetical.genes(%)`), mean.pgap=mean(`PGAP.hypothetical.genes(%)`), mean.eggnog=mean(`EGGnog.hypothetical.genes(%)`))
+genus.hyp.comparison$smallest <- colnames(genus.hyp.comparison[,-1:-2])[apply(genus.hyp.comparison[,-1:-2],1,which.min)]
+genus.hyp.comparison
+
+table(family.hyp.comparison$smallest)
+family.hyp.comparison %>% filter(smallest=="mean.pgap")
+
+#WARN: Hyps | Anova
+model.tax.prokka  <-  aov(`Prokka.hypothetical.genes(%)` ~  phylium + class + order + family,  data = ref)
+model.tax.bakta   <-  aov(`Bakta.hypothetical.genes(%)` ~  phylium + class + order + family, data = ref)
+model.tax.eggnog   <-  aov(`EGGnog.hypothetical.genes(%)` ~  phylium + class + order + family, data = ref)
+model.tax.pgap   <-  aov(`PGAP.hypothetical.genes(%)` ~  phylium + class + order + family, data = ref)
+model.tax.reported   <-  aov(ncbi_protein_count~  phylium + class + order + family, data = ref)
+model.tax.igm   <-  aov(`w/.Func.Pred.%...*.assembled`~ phylium + class + order + family,  data = ref)
+
+
+```
+
+
+```{r}
+# FIX: NOISE
+n1 <- read_csv("/mnt/6TB_1/annobench_reports/final_report_batch1/noise_report_batch1.csv")
+n2 <- read_csv("/mnt/6TB_1/annobench_reports/final_report_batch2/collected_noise_fasta_report.csv")
+n3 <- read_csv("/mnt/6TB_1/annobench_reports/final_report_batch3/collected_noise_fasta_report.csv")
+n4 <- read_csv("/mnt/6TB_1/annobench_reports/final_report_batch4/collected_noise_fasta_report.csv")
+ref.noise  <- rbind(n1,n2,n3,n4)
+
+n1 <- read_csv("/mnt/6TB_1/annobench_reports/final_report_batch1/noise2_report_batch1.csv")
+n2 <- read_csv("/mnt/6TB_1/annobench_reports/final_report_batch2/collected_noise2_fasta_report.csv")
+n3 <- read_csv("/mnt/6TB_1/annobench_reports/final_report_batch3/collected_noise2_fasta_report.csv")
+n4 <- read_csv("/mnt/6TB_1/annobench_reports/final_report_batch4/collected_noise2_fasta_report.csv")
+ref.noise2  <- rbind(n1,n2,n3,n4)
+
+n1 <- read_csv("/mnt/6TB_1/annobench_reports/final_report_batch1/noise3_report_batch1.csv")
+n2 <- read_csv("/mnt/6TB_1/annobench_reports/final_report_batch2/collected_noise3_fasta_report.csv")
+n3 <- read_csv("/mnt/6TB_1/annobench_reports/final_report_batch3/collected_noise3_fasta_report.csv")
+n4 <- read_csv("/mnt/6TB_1/annobench_reports/final_report_batch4/collected_noise3_fasta_report.csv")
+ref.noise3  <- rbind(n1,n2,n3,n4)
+
+names(ref.noise) <- gsub(" ", ".", names(ref.noise))
+names(ref.noise2) <- gsub(" ", ".", names(ref.noise2))
+names(ref.noise3) <- gsub(" ", ".", names(ref.noise3))
+
+summary(ref.noise[,3:14])
+summary(ref.noise2[,3:14])
+summary(ref.noise3[,3:14])
+
+
+noise_combined <- rbind(ref.noise,ref.noise2,ref.noise3)
+
+ggplot(noise_combined,aes(x=type,y=Prokka.gene.count))+
+        geom_violin()
+
+
+ggplot(noise_combined,aes(x=type,y=Bakta.gene.count))+
+        geom_violin()
+
+
+ggplot(noise_combined,aes(x=type,y=EGGnog.gene.count))+
+        geom_violin()
+
+
+ggplot(noise_combined,aes(x=type,y=PGAP.gene.count))+
+        geom_violin()
+
+ggplot(noise_combined,aes(x=type,y=`Prokka.hypothetical.genes(%)`))+
+        geom_violin()
+
+
+ggplot(noise_combined,aes(x=type,y=`Bakta.hypothetical.genes(%)`))+
+        geom_violin()
+
+
+ggplot(noise_combined,aes(x=type,y=`EGGnog.hypothetical.genes(%)`))+
+        geom_violin()
+
+
+ggplot(noise_combined,aes(x=type,y=`PGAP.hypothetical.genes(%)`))+
+        geom_violin()
+
+
+# Stability NCBI old PGAP 
+as.Date(ref$ncbi_date)
+ggplot(ref, aes(x=as.character(ncbi_date),y=`ncbi_protein_count`))+
+        geom_bar(stat = "identity")
+
+
+```
