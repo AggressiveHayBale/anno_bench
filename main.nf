@@ -3,7 +3,7 @@ nextflow.enable.dsl=2
 
 /*
 * Nextflow -- Annotation Benchmark Pipeline 
-* Author: CaSe-group
+* Author: Mateusz Jundzill
 */
 
 /************************** 
