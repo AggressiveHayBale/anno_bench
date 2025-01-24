@@ -49,7 +49,7 @@ if (params.csv) {
 csv_ch = Channel 
     .fromPath(params.csv, checkIfExists:true)
     .splitCsv(header: true)
-   .map {csv_data -> tuple( csv_data.Accession, csv_data.Species, csv_data.Path, csv_data.Noise, csv_data.Noise2, csv_data.Noise3 )
+   .map {csv_data -> tuple( csv_data.Accession, csv_data.Species, csv_data.Path/*, csv_data.Noise, csv_data.Noise2, csv_data.Noise3*/ )
     }
 }else{
     exit 1, "'--csv' parameter not found"
@@ -64,7 +64,7 @@ csv_ch = Channel
 /************************** 
 * Workflows
 **************************/
-include {fasta_mod_wf} from './workflows/fasta_mod_wf.nf'
+/*include {fasta_mod_wf} from './workflows/fasta_mod_wf.nf'*/
 include {annotation_wf} from './workflows/annotation_wf.nf'
 include {analysis_wf} from './workflows/analysis_wf.nf'
 

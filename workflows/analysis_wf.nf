@@ -30,53 +30,53 @@ workflow analysis_wf{
         it[3].findAll { it.first() == "original" },it[4].findAll { it.first() == "original" } )
     }
 
-    noise=combined.map { it ->
-        tuple( it[0], it[1].findAll { it.first() == "noise" },it[2].findAll { it.first() == "noise" },
-        it[3].findAll { it.first() == "noise" },it[4].findAll { it.first() == "noise" } )
-    }
+  //  noise=combined.map { it ->
+  //      tuple( it[0], it[1].findAll { it.first() == "noise" },it[2].findAll { it.first() == "noise" },
+  //      it[3].findAll { it.first() == "noise" },it[4].findAll { it.first() == "noise" } )
+  //  }
 
-    noise2=combined.map { it ->
-        tuple( it[0], it[1].findAll { it.first() == "noise2" },it[2].findAll { it.first() == "noise2" },
-        it[3].findAll { it.first() == "noise2" },it[4].findAll { it.first() == "noise2" } )
-    }
+  //  noise2=combined.map { it ->
+  //      tuple( it[0], it[1].findAll { it.first() == "noise2" },it[2].findAll { it.first() == "noise2" },
+  //      it[3].findAll { it.first() == "noise2" },it[4].findAll { it.first() == "noise2" } )
+  //  }
 
-    noise3=combined.map { it ->
-        tuple( it[0], it[1].findAll { it.first() == "noise3" },it[2].findAll { it.first() == "noise3" },
-        it[3].findAll { it.first() == "noise3" },it[4].findAll { it.first() == "noise3" } )
-    }
+  //  noise3=combined.map { it ->
+  //      tuple( it[0], it[1].findAll { it.first() == "noise3" },it[2].findAll { it.first() == "noise3" },
+  //      it[3].findAll { it.first() == "noise3" },it[4].findAll { it.first() == "noise3" } )
+  //  }
     original_proc=original.map { it -> tuple(it[0],
     it[1].flatten()[1],it[1].flatten()[2],it[1].flatten()[3],
     it[2].flatten()[1],it[2].flatten()[2],it[2].flatten()[3],
     it[3].flatten()[1],it[3].flatten()[2],it[3].flatten()[3],
     it[4].flatten()[1],it[4].flatten()[2],it[4].flatten()[3])}
     
-    noise=noise.map { it -> tuple(it[0],
-    it[1].flatten()[1],it[1].flatten()[2],it[1].flatten()[3],
-    it[2].flatten()[1],it[2].flatten()[2],it[2].flatten()[3],
-    it[3].flatten()[1],it[3].flatten()[2],it[3].flatten()[3],
-    it[4].flatten()[1],it[4].flatten()[2],it[4].flatten()[3])}
-    
-    noise2=noise2.map { it -> tuple(it[0],
-    it[1].flatten()[1],it[1].flatten()[2],it[1].flatten()[3],
-    it[2].flatten()[1],it[2].flatten()[2],it[2].flatten()[3],
-    it[3].flatten()[1],it[3].flatten()[2],it[3].flatten()[3],
-    it[4].flatten()[1],it[4].flatten()[2],it[4].flatten()[3])}
+   // noise=noise.map { it -> tuple(it[0],
+   // it[1].flatten()[1],it[1].flatten()[2],it[1].flatten()[3],
+   // it[2].flatten()[1],it[2].flatten()[2],it[2].flatten()[3],
+   // it[3].flatten()[1],it[3].flatten()[2],it[3].flatten()[3],
+   // it[4].flatten()[1],it[4].flatten()[2],it[4].flatten()[3])}
+   // 
+   // noise2=noise2.map { it -> tuple(it[0],
+   // it[1].flatten()[1],it[1].flatten()[2],it[1].flatten()[3],
+   // it[2].flatten()[1],it[2].flatten()[2],it[2].flatten()[3],
+   // it[3].flatten()[1],it[3].flatten()[2],it[3].flatten()[3],
+   // it[4].flatten()[1],it[4].flatten()[2],it[4].flatten()[3])}
 
-    noise3=noise3.map { it -> tuple(it[0],
-    it[1].flatten()[1],it[1].flatten()[2],it[1].flatten()[3],
-    it[2].flatten()[1],it[2].flatten()[2],it[2].flatten()[3],
-    it[3].flatten()[1],it[3].flatten()[2],it[3].flatten()[3],
-    it[4].flatten()[1],it[4].flatten()[2],it[4].flatten()[3])}
+   // noise3=noise3.map { it -> tuple(it[0],
+   // it[1].flatten()[1],it[1].flatten()[2],it[1].flatten()[3],
+   // it[2].flatten()[1],it[2].flatten()[2],it[2].flatten()[3],
+   // it[3].flatten()[1],it[3].flatten()[2],it[3].flatten()[3],
+   // it[4].flatten()[1],it[4].flatten()[2],it[4].flatten()[3])}
     
     report_original=analysis_org(original_proc,'original')
-    report_noise=analysis_noise(noise,'noise')
-    report_noise2=analysis_noise2(noise2,'noise2')
-    report_noise3=analysis_noise3(noise3,'noise3')
+   // report_noise=analysis_noise(noise,'noise')
+   // report_noise2=analysis_noise2(noise2,'noise2')
+   // report_noise3=analysis_noise3(noise3,'noise3')
     
     report_original.collectFile(name: 'collected_original_fasta_report.csv', keepHeader: true ,storeDir: "${params.output}/final_report/")
-    report_noise.collectFile(name: 'collected_noise_fasta_report.csv', keepHeader: true ,storeDir: "${params.output}/final_report/")
-    report_noise2.collectFile(name: 'collected_noise2_fasta_report.csv', keepHeader: true ,storeDir: "${params.output}/final_report/")
-    report_noise3.collectFile(name: 'collected_noise3_fasta_report.csv', keepHeader: true ,storeDir: "${params.output}/final_report/")
+   // report_noise.collectFile(name: 'collected_noise_fasta_report.csv', keepHeader: true ,storeDir: "${params.output}/final_report/")
+   // report_noise2.collectFile(name: 'collected_noise2_fasta_report.csv', keepHeader: true ,storeDir: "${params.output}/final_report/")
+   // report_noise3.collectFile(name: 'collected_noise3_fasta_report.csv', keepHeader: true ,storeDir: "${params.output}/final_report/")
     
     
     emit: 

@@ -1,4 +1,4 @@
-include { prokka } from './process/prokka.nf' 
+include{ prokka } from './process/prokka.nf' 
 include{ bakta } from './process/bakta.nf'
 include{ bakta_database } from './process/bakta.nf'
 include{ eggnog } from './process/eggnog.nf'
