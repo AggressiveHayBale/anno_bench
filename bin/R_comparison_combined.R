@@ -33,22 +33,22 @@ library(readr)
 library(dplyr)
 library(tidyr)
 
-id <- args[1]
 
-prokka_faa<- args[2]
-prokka_gbk<- args[3]
+id <- "GCA_000739655.2_LOWCPU"
 
-bakta_faa<- args[4]
-bakta_gbff<- args[5]
+prokka_faa<- "/mnt/disk3/Workflows/anno_bench/results_lowcpu/GCA_000739655.1_LOWCPU/prokka/original_GCA_000739655.1_LOWCPU_prokka.faa"
+prokka_gbk<- "/mnt/disk3/Workflows/anno_bench/results_lowcpu/GCA_000739655.1_LOWCPU/prokka/original_GCA_000739655.1_LOWCPU_prokka.gff"
+bakta_faa<- "/mnt/disk3/Workflows/anno_bench/results_lowcpu/GCA_000739655.1_LOWCPU/bakta/original_GCA_000739655.1_LOWCPU_bakta.faa"
+bakta_gbff<- "/mnt/disk3/Workflows/anno_bench/results_lowcpu/GCA_000739655.1_LOWCPU/bakta/original_GCA_000739655.1_LOWCPU_bakta.gff3"
+eggnog_faa<- "/mnt/disk3/Workflows/anno_bench/results_lowcpu/GCA_000739655.1_LOWCPU/eggnog/original_GCA_000739655.1_LOWCPU_eggnog.emapper.genepred.fasta"
+eggnog_gff<- "/mnt/disk3/Workflows/anno_bench/results_lowcpu/GCA_000739655.1_LOWCPU/eggnog/original_GCA_000739655.1_LOWCPU_eggnog.emapper.decorated.gff"
+pgap_faa<- "/mnt/disk3/Workflows/anno_bench/results_lowcpu/GCA_000739655.1_LOWCPU/pgap/original_GCA_000739655.1_LOWCPU_pgap.faa"
+pgap_gff<- "/mnt/disk3/Workflows/anno_bench/results_lowcpu/GCA_000739655.1_LOWCPU/pgap/original_GCA_000739655.1_LOWCPU_pgap.gff"
 
-eggnog_faa<- args[6]
-eggnog_gff<- args[7]
+fasta_type <-  "original"
 
-pgap_faa<- args[8]
-pgap_gff<- args[9]
 
-fasta_type <- args[10]
-
+ 
 ########
 #Prokka#
 ########

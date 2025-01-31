@@ -9,7 +9,7 @@ process prokka {
         tuple val(name), val(type), path("${type}_${name}_prokka.faa"),path("${type}_${name}_prokka.gff"), emit: annotation_prokka
     script:
         """
-        prokka --compliant --fast \
+        prokka --compliant \
             --outdir output \
             --force  \
             --prefix ${type}_${name}_prokka  \
