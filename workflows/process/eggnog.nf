@@ -29,7 +29,8 @@ process eggnog {
     script:
         """
         emapper.py -i ${fasta} \
-            --cpu ${task.cpus} \
+	    --dbmem \
+            --cpu 0 \
             -m diamond \
             --data_dir ${eggnog_db_dir} \
             --itype genome \
