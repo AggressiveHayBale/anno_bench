@@ -9,11 +9,11 @@ process bakta_database {
         mkdir bakta_db
         wget --no-check-certificate https://zenodo.org/record/7669534/files/db.tar.gz
         tar xzf db.tar.gz -C bakta_db
-
-        amrfinder_update --force_update --database /db/amrfinderplus-db/
-	rm /db/amrfinderplus/latest
-        cp -r /db/amrfinderplus/20* /db/amrfinderplus/latest
-        chown -R mambauser:users /db/amrfinderplus 
+rm db.tar.gz
+        amrfinder_update --force_update --database bakta_db/db/amrfinderplus-db/
+	rm -r bakta_db/db/amrfinderplus-db/latest
+        cp -r bakta_db/db/amrfinderplus-db/20* bakta_db/db/amrfinderplus-db/latest
+        chown -R mambauser:users bakta_db/db/amrfinderplus-db 
         """
     stub:
         """
