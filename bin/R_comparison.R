@@ -1,10 +1,6 @@
 #!/usr/bin/env Rscript
 args = commandArgs(trailingOnly=TRUE)
 
-###########
-#Functions#
-###########
-
 ##Ampir-read faa
 read_faa<-function (file = NULL) 
 {
@@ -143,11 +139,12 @@ annotation <- suppressMessages(read_delim(pgap_gff,
 fasta_data <- read_faa(pgap_faa)
 
 annotation<- annotation[!(annotation$X3=="region" | annotation$X3=="gene"),]
+annotation<- annotation[!(annotation$X3=="exon"),]
 
 annotation <- separate(annotation, X9, c(NA, "ID"), remove = FALSE, "ID=cds-")
 annotation$ID <- gsub(";.*","",annotation$ID)
 
-annotation$product <- str_extract(annotation$X9,pattern = "product=(.*?;)") 
+annotation$product <- str_extract(annotation$X9,pattern = "product=(.*?)(;|$)") 
 annotation$product <- gsub("product=", "", annotation$product)
 annotation$product <- gsub(";", "", annotation$product)
 annotation$go <- str_count(annotation$X9,"GO:")
@@ -184,120 +181,99 @@ colnames(annotation_merged)[colnames(annotation_merged) == 'seq_aa']<- c("sequen
 #Remove star from end of sequence 
 annotation_merged$sequence = substring(annotation_merged$sequence,1, nchar(annotation_merged$sequence)-1)
 
-em_Preferred_name <- str_extract(annotation_merged$X9,pattern = "em_Preferred_name=(.*?;)") 
+em_Preferred_name <- str_extract(annotation_merged$X9,pattern = "em_Preferred_name=(.*?)(;|$)") 
 em_Preferred_name <- gsub("em_Preferred_name=", "", em_Preferred_name)
 em_Preferred_name <- gsub(";", "", em_Preferred_name)
 em_Preferred_name[em_Preferred_name==""] <- NA
-
-em_CAZy <- str_extract(annotation_merged$X9,pattern = "em_CAZy=(.*?;)")
-em_CAZy <- gsub("em_CAZy=", "", em_CAZy)
-em_CAZy <- gsub(";", "", em_CAZy)
-ct_em_CAZy <- str_count(em_CAZy, pattern = ",") + 1 # Adding 1 because str_count counts separators
-ct_em_CAZy[is.na(ct_em_CAZy) | ct_em_CAZy == 1] <- 0
-annotation_merged$ct_em_CAZy <- ct_em_CAZy
-
-em_COG_cat <- str_extract(annotation_merged$X9,pattern = "em_COG_cat=(.*?;)")
-em_COG_cat <- gsub("em_COG_cat=", "", em_COG_cat)
-em_COG_cat <- gsub(";", "", em_COG_cat)
-em_COG_cat[em_COG_cat == "None"] <- NA
-
-ct_em_COG_cat <- nchar(gsub("[^,]", "", em_COG_cat)) + 1
-annotation_merged$ct_em_COG_cat <- ct_em_COG_cat
-
-em_EC <- str_extract(annotation_merged$X9,pattern = "em_EC=(.*?;)")
-em_EC <- gsub("em_EC=", "", em_EC)
-em_EC <- gsub(";", "", em_EC)
-ct_em_EC <- str_count(em_EC, pattern = ",") + 1 # Adding 1 because str_count counts separators
-ct_em_EC[is.na(ct_em_EC) | ct_em_EC == 1] <- 0
-
-annotation_merged$ct_em_EC <- ct_em_EC
-
-em_KEGG_ko <- str_extract(annotation_merged$X9,pattern = "em_KEGG_ko=(.*?;)")
-em_KEGG_ko <- gsub("em_KEGG_ko=", "", em_KEGG_ko)
-em_KEGG_ko <- gsub(";", "", em_KEGG_ko)
-ct_em_KEGG_ko <- str_count(em_KEGG_ko, pattern = ",") + 1 # Adding 1 because str_count counts separators
-ct_em_KEGG_ko[is.na(ct_em_KEGG_ko) | ct_em_KEGG_ko == 1] <- 0
-
-annotation_merged$ct_em_KEGG_ko <- ct_em_KEGG_ko
-
-em_BRITE <- str_extract(annotation_merged$X9,pattern = "em_BRITE=(.*?;)")
-em_BRITE <- gsub("em_BRITE=", "", em_BRITE)
-em_BRITE <- gsub(";", "", em_BRITE)
-ct_em_BRITE <- str_count(em_BRITE, pattern = ",") + 1 # Adding 1 because str_count counts separators
-ct_em_BRITE[is.na(ct_em_BRITE) | ct_em_BRITE == 1] <- 0
-
-annotation_merged$ct_em_BRITE <- ct_em_BRITE
-
-em_BiGG_Reaction <- str_extract(annotation_merged$X9,pattern = "em_BiGG_Reaction=(.*?;)")
-em_BiGG_Reaction <- gsub("em_BiGG_Reaction=", "", em_BiGG_Reaction)
-em_BiGG_Reaction <- gsub(";", "", em_BiGG_Reaction)
-ct_em_BiGG_Reaction <- str_count(em_BiGG_Reaction, pattern = ",") + 1 # Adding 1 because str_count counts separators
-ct_em_BiGG_Reaction[is.na(ct_em_BiGG_Reaction) | ct_em_BiGG_Reaction == 1] <- 0
-
-annotation_merged$ct_em_BiGG_Reaction <- ct_em_BiGG_Reaction
-
-em_KEGG_rclass <- str_extract(annotation_merged$X9,pattern = "em_KEGG_rclass=(.*?;)")
-em_KEGG_rclass <- gsub("em_KEGG_rclass=", "", em_KEGG_rclass)
-em_KEGG_rclass <- gsub(";", "", em_KEGG_rclass)
-ct_em_KEGG_rclass <- str_count(em_KEGG_rclass, pattern = ",") + 1 # Adding 1 because str_count counts separators
-ct_em_KEGG_rclass[is.na(ct_em_KEGG_rclass) | ct_em_KEGG_rclass == 1] <- 0
-
-annotation_merged$ct_em_KEGG_rclass <- ct_em_KEGG_rclass
-
-em_KEGG_TC <- str_extract(annotation_merged$X9,pattern = "em_KEGG_TC=(.*?;)")
-em_KEGG_TC <- gsub("em_KEGG_TC=", "", em_KEGG_TC)
-em_KEGG_TC <- gsub(";", "", em_KEGG_TC)
-ct_em_KEGG_TC <- str_count(em_KEGG_TC, pattern = ",") + 1 # Adding 1 because str_count counts separators
-ct_em_KEGG_TC[is.na(ct_em_KEGG_TC) | ct_em_KEGG_TC == 1] <- 0
-
-annotation_merged$ct_em_KEGG_TC <- ct_em_KEGG_TC
-
-em_KEGG_Pathway <- str_extract(annotation_merged$X9,pattern = "em_KEGG_Pathway=(.*?;)")
-em_KEGG_Pathway <- gsub("em_KEGG_Pathway=", "", em_KEGG_Pathway)
-em_KEGG_Pathway <- gsub(";", "", em_KEGG_Pathway)
-ct_em_KEGG_Pathway <- str_count(em_KEGG_Pathway, pattern = ",") + 1 # Adding 1 because str_count counts separators
-ct_em_KEGG_Pathway[is.na(ct_em_KEGG_Pathway) | ct_em_KEGG_Pathway == 1] <- 0
-
-annotation_merged$ct_em_KEGG_Pathway <- ct_em_KEGG_Pathway
-
-em_KEGG_Reaction <- str_extract(annotation_merged$X9,pattern = "em_KEGG_Reaction=(.*?;)")
-em_KEGG_Reaction <- gsub("em_KEGG_Reaction=", "", em_KEGG_Reaction)
-em_KEGG_Reaction <- gsub(";", "", em_KEGG_Reaction)
-ct_em_KEGG_Reaction <- str_count(em_KEGG_Reaction, pattern = ",") + 1 # Adding 1 because str_count counts separators
-ct_em_KEGG_Reaction[is.na(ct_em_KEGG_Reaction) | ct_em_KEGG_Reaction == 1] <- 0
-
-annotation_merged$ct_em_KEGG_Reaction <- ct_em_KEGG_Reaction
-
-em_KEGG_Module <- str_extract(annotation_merged$X9,pattern = "em_KEGG_Module=(.*?;)")
-em_KEGG_Module <- gsub("em_KEGG_Module=", "", em_KEGG_Module)
-em_KEGG_Module <- gsub(";", "", em_KEGG_Module)
-ct_em_KEGG_Module <- str_count(em_KEGG_Module, pattern = ",") + 1 # Adding 1 because str_count counts separators
-ct_em_KEGG_Module[is.na(ct_em_KEGG_Module) | ct_em_KEGG_Module == 1] <- 0
-
-annotation_merged$ct_em_KEGG_Module <- ct_em_KEGG_Module
-
-em_PFAMs <- str_extract(annotation_merged$X9,pattern = "em_PFAMs=(.*?;)")
-em_PFAMs <- gsub("em_PFAMs=", "", em_PFAMs)
-em_PFAMs <- gsub(";", "", em_PFAMs)
-ct_em_PFAMs <- str_count(em_PFAMs, pattern = ",") + 1 # Adding 1 because str_count counts separators
-ct_em_PFAMs[is.na(ct_em_PFAMs) | ct_em_PFAMs == 1] <- 0
-
-annotation_merged$ct_em_PFAMs <- ct_em_PFAMs
-
-em_desc <- str_extract(annotation_merged$X9,pattern = "em_desc=(.*?;)")
+em_desc <- str_extract(annotation_merged$X9,pattern = "em_desc=(.*?)(;|$)")
 em_desc <- gsub("em_desc=", "", em_desc)
 em_desc <- gsub(";", "", em_desc)
 em_desc[em_desc==""] <- NA
 em_desc[em_desc=="None"] <- NA
+annotation_merged$product<- em_Preferred_name
 
+annotation_merged<- annotation_merged %>% mutate(product = coalesce(product,em_desc))
+
+ct_em_CAZy <- str_extract(annotation_merged$X9,pattern = "em_CAZy=(.*?)(;|$)")
+ct_em_CAZy <- gsub("em_CAZy=","",ct_em_CAZy) 
+ct_em_CAZy <- gsub(";","",ct_em_CAZy)
+ct_em_CAZy[ct_em_CAZy==""] <- NA
+ct_em_CAZy[ct_em_CAZy=="None"] <- NA
+annotation_merged$ct_em_CAZy <- ct_em_CAZy
+ct_em_COG_cat <- str_extract(annotation_merged$X9,pattern = "em_COG_cat=(.*?)(;|$)")
+ct_em_COG_cat <- gsub("ct_em_COG_cat","",ct_em_COG_cat) 
+ct_em_COG_cat <- gsub(";","",ct_em_COG_cat)
+ct_em_COG_cat[ct_em_COG_cat==""] <- NA
+ct_em_COG_cat[ct_em_COG_cat=="None"] <- NA
+annotation_merged$ct_em_COG_cat <- ct_em_COG_cat
+ct_em_EC <- str_extract(annotation_merged$X9, pattern = "em_EC=(.*?)(;|$)")
+ct_em_EC <- gsub("ct_em_EC=","",ct_em_EC) 
+ct_em_EC <- gsub(";","",ct_em_EC)
+ct_em_EC[ct_em_EC==""] <- NA
+ct_em_EC[ct_em_EC=="None"] <- NA
+annotation_merged$ct_em_EC <- ct_em_EC
+ct_em_KEGG_ko <- str_extract(annotation_merged$X9,pattern = "em_KEGG_ko=(.*?)(;|$)")
+ct_em_KEGG_ko <- gsub("ct_em_KEGG_ko=","",ct_em_KEGG_ko) 
+ct_em_KEGG_ko <- gsub(";","",ct_em_KEGG_ko)
+ct_em_KEGG_ko[ct_em_KEGG_ko==""] <- NA
+ct_em_KEGG_ko[ct_em_KEGG_ko=="None"] <- NA
+annotation_merged$ct_em_KEGG_ko <- ct_em_KEGG_ko
+ct_em_BRITE <- str_extract(annotation_merged$X9,pattern = "em_BRITE=(.*?)(;|$)")
+ct_em_BRITE <- gsub("em_CAZy=","",ct_em_BRITE) 
+ct_em_BRITE <- gsub(";","",ct_em_BRITE)
+ct_em_BRITE[ct_em_BRITE==""] <- NA
+ct_em_BRITE[ct_em_BRITE=="None"] <- NA
+annotation_merged$ct_em_BRITE <- ct_em_BRITE
+ct_em_BiGG_Reaction <- str_extract(annotation_merged$X9,pattern = "em_BiGG_Reaction=(.*?)(;|$)")
+ct_em_BiGG_Reaction <- gsub("em_CAZy=","",ct_em_BiGG_Reaction) 
+ct_em_BiGG_Reaction <- gsub(";","",ct_em_BiGG_Reaction)
+ct_em_BiGG_Reaction[ct_em_BiGG_Reaction==""] <- NA
+ct_em_BiGG_Reaction[ct_em_BiGG_Reaction=="None"] <- NA
+annotation_merged$ct_em_BiGG_Reaction <- ct_em_BiGG_Reaction
+ct_em_KEGG_rclass <- str_extract(annotation_merged$X9,pattern = "em_KEGG_rclass=(.*?)(;|$)")
+ct_em_KEGG_rclass <- gsub("em_CAZy=","",ct_em_KEGG_rclass) 
+ct_em_KEGG_rclass <- gsub(";","",ct_em_KEGG_rclass)
+ct_em_KEGG_rclass[ct_em_KEGG_rclass==""] <- NA
+ct_em_KEGG_rclass[ct_em_KEGG_rclass=="None"] <- NA
+annotation_merged$ct_em_KEGG_rclass <- ct_em_KEGG_rclass
+ct_em_KEGG_TC <- str_extract(annotation_merged$X9,pattern = "em_KEGG_TC=(.*?)(;|$)")
+ct_em_KEGG_TC <- gsub("em_CAZy=","",ct_em_KEGG_TC) 
+ct_em_KEGG_TC <- gsub(";","",ct_em_KEGG_TC)
+ct_em_KEGG_TC[ct_em_KEGG_TC==""] <- NA
+ct_em_KEGG_TC[ct_em_KEGG_TC=="None"] <- NA
+annotation_merged$ct_em_KEGG_TC <- ct_em_KEGG_TC
+ct_em_KEGG_Pathway <- str_extract(annotation_merged$X9,pattern = "em_KEGG_Pathway=(.*?)(;|$)")
+ct_em_KEGG_Pathway <- gsub("em_CAZy=","",ct_em_KEGG_Pathway) 
+ct_em_KEGG_Pathway <- gsub(";","",ct_em_KEGG_Pathway)
+ct_em_KEGG_Pathway[ct_em_KEGG_Pathway==""] <- NA
+ct_em_KEGG_Pathway[ct_em_KEGG_Pathway=="None"] <- NA
+annotation_merged$ct_em_KEGG_Pathway <- ct_em_KEGG_Pathway
+ct_em_KEGG_Reaction <- str_extract(annotation_merged$X9,pattern = "em_KEGG_Reaction=(.*?)(;|$)")
+ct_em_KEGG_Reaction <- gsub("em_CAZy=","",ct_em_KEGG_Reaction) 
+ct_em_KEGG_Reaction <- gsub(";","",ct_em_KEGG_Reaction)
+ct_em_KEGG_Reaction[ct_em_KEGG_Reaction==""] <- NA
+ct_em_KEGG_Reaction[ct_em_KEGG_Reaction=="None"] <- NA
+annotation_merged$ct_em_KEGG_Reaction <- ct_em_KEGG_Reaction
+ct_em_KEGG_Module <- str_extract(annotation_merged$X9,pattern = "em_KEGG_Module=(.*?)(;|$)")
+ct_em_KEGG_Module <- gsub("em_CAZy=","",ct_em_KEGG_Module) 
+ct_em_KEGG_Module <- gsub(";","",ct_em_KEGG_Module)
+ct_em_KEGG_Module[ct_em_KEGG_Module==""] <- NA
+ct_em_KEGG_Module[ct_em_KEGG_Module=="None"] <- NA
+annotation_merged$ct_em_KEGG_Module <- ct_em_KEGG_Module
+ct_em_PFAMs <- str_extract(annotation_merged$X9,pattern = "em_PFAMs=(.*?)(;|$)")
+ct_em_PFAMs <- gsub("em_CAZy=","",ct_em_PFAMs) 
+ct_em_PFAMs <- gsub(";","",ct_em_PFAMs)
+ct_em_PFAMs[ct_em_PFAMs==""] <- NA
+ct_em_PFAMs[ct_em_PFAMs=="None"] <- NA
+annotation_merged$ct_em_PFAMs <- ct_em_PFAMs
+
+ct_em_desc <- str_extract(annotation_merged$X9,pattern = "em_desc=(.*?)(;|$)")
 ct_Bacteria_prot_un_fun <- str_count(em_desc, pattern = "Bacterial protein of unknown function")
 ct_Bacteria_prot_un_fun[is.na(ct_Bacteria_prot_un_fun)==TRUE] <- 0
 annotation_merged$ct_Bacteria_prot_un_fun <- ct_Bacteria_prot_un_fun
-
 ct_Prot_un_fun <- str_count(em_desc, pattern = "Protein of unknown function")
 ct_Prot_un_fun[is.na(ct_Prot_un_fun)==TRUE] <- 0
 annotation_merged$ct_Prot_un_fun <- ct_Prot_un_fun
-
 ct_Domain_un_fun <- str_count(em_desc, pattern = "Domain of unknown function")
 ct_Domain_un_fun[is.na(ct_Domain_un_fun)==TRUE] <- 0
 annotation_merged$ct_Domain_un_fun <- ct_Domain_un_fun
@@ -330,6 +306,70 @@ bakta_perc_hyps <- (bakta_hyps/bakta_gene_ct)*100
 pgap_perc_hyps <- (pgap_hyps/pgap_gene_ct)*100
 eggnog_perc_hyps<- (eggnog_hyps/eggnog_gene_ct)*100
 
+prokka <- prokka %>%
+  as.data.frame() %>%
+  filter(!X3 %in% c("gene")) %>%
+  mutate(prokka_len = X5 - X4)
+bakta <- bakta %>%
+  as.data.frame() %>%
+  filter(!X3 %in% c("region")) %>%
+  mutate(bakta_len = X5 - X4)
+eggnog <- eggnog %>%
+  as.data.frame() %>%
+  filter(!X3 %in% c("region")) %>%
+  mutate(eggnog_len = X5 - X4)
+pgap <- pgap %>%
+  filter(!X3 %in% c("region", "exon", "gene")) %>%
+  mutate(pgap_len= X5 - X4)
+prokka_total_coding_len <- sum(prokka$prokka_len, na.rm = TRUE)
+bakta_total_coding_len <- sum(bakta$bakta_len, na.rm = TRUE)
+eggnog_total_coding_len <- sum(eggnog$eggnog_len, na.rm = TRUE)
+pgap_total_coding_len <- sum(pgap$pgap_len, na.rm = TRUE)
+prokka_fullyanno_coding_len <- prokka %>%
+  filter(product != "hypothetical protein"& !is.na(product)) %>%
+  summarise(total_len = sum(prokka_len, na.rm = TRUE)) %>%
+  .$total_len
+bakta_fullyanno_coding_len <- bakta %>%
+  filter(product != "hypothetical protein"& !is.na(product)) %>%
+  summarise(total_len = sum(bakta_len, na.rm = TRUE)) %>%
+  .$total_len
+eggnog_fullyanno_coding_len <- eggnog %>%
+  filter(!is.na(product)) %>%
+  summarise(total_len = sum(eggnog_len, na.rm = TRUE)) %>%
+  .$total_len
+pgap_fullyanno_coding_len <- pgap %>%
+  filter(product != "hypothetical protein"& !is.na(product)) %>%
+  summarise(total_len = sum(pgap_len, na.rm = TRUE)) %>%
+  .$total_len
+prokka_otheranno_coding_len <- prokka %>%
+  filter(is.na(product)) %>%
+  summarise(total_len = sum(prokka_len, na.rm = TRUE)) %>%
+  .$total_len
+bakta_otheranno_coding_len <- bakta %>%
+  filter( is.na(product)) %>%
+  summarise(total_len = sum(bakta_len, na.rm = TRUE)) %>%
+  .$total_len
+eggnog_otheranno_coding_len <- 0
+pgap_otheranno_coding_len <- pgap %>%
+  filter(is.na(product)) %>%
+  summarise(total_len = sum(pgap_len, na.rm = TRUE)) %>%
+  .$total_len
+prokka_total_coding_len_hyp <- prokka %>%
+  filter(product == "hypothetical protein") %>%
+  summarise(total_len_hyp = sum(prokka_len, na.rm = TRUE)) %>%
+  .$total_len_hyp
+bakta_total_coding_len_hyp <- bakta %>%
+  filter(product == "hypothetical protein") %>%
+  summarise(total_len_hyp = sum(bakta_len, na.rm = TRUE)) %>%
+  .$total_len_hyp
+eggnog_total_coding_len_hyp <- eggnog %>%
+  filter(is.na(product)) %>%
+  summarise(total_len_na = sum(eggnog_len, na.rm = TRUE)) %>%
+  .$total_len_na
+pgap_total_coding_len_hyp <- pgap %>%
+  filter(product == "hypothetical protein") %>%
+  summarise(total_len_hyp = sum(pgap_len, na.rm = TRUE)) %>%
+  .$total_len_hyp
 
 
 ##Check what could be hyps
@@ -346,25 +386,18 @@ eggnog_perc_hyps<- (eggnog_hyps/eggnog_gene_ct)*100
 prokka_type <-as.list(table(prokka$X3))
 bakta_type <- as.list(table(bakta$X3))
 pgap_type <- as.list(table(pgap$X3))
-
 prokka_type <-as.list(table(prokka$X3))
 bakta_type <- as.list(table(bakta$X3))
 pgap_type <- as.list(table(pgap$X3))
-
 prokka_CDS<-ifelse(is.null(prokka_type$CDS),0,prokka_type$CDS )
 bakta_CDS<- ifelse(is.null(bakta_type$CDS),0,bakta_type$CDS )
 pgap_CDS<- ifelse(is.null(pgap_type$CDS),0,pgap_type$CDS )
-
 prokka_rrna<- ifelse(is.null(prokka_type$rRNA),0,prokka_type$rRNA )
 bakta_rrna<-ifelse(is.null(bakta_type$rRNA),0,bakta_type$rRNA )
 pgap_rrna<- ifelse(is.null(pgap_type$rRNA),0,pgap_type$rRNA )
-
-
 prokka_trna<-ifelse(is.null(prokka_type$tRNA),0,pgap_type$tRNA )
 bakta_trna<-ifelse(is.null(bakta_type$tRNA),0,bakta_type$tRNA )
 pgap_trna<-ifelse(is.null(pgap_type$tRNA),0,pgap_type$tRNA )
-
-
 prokka_tmrna<-ifelse(is.null(prokka_type$tmRNA),0,pgap_type$tmRNA )
 bakta_tmrna<-ifelse(is.null(bakta_type$tmRNA),0,bakta_type$tmRNA )
 pgap_tmrna<-ifelse(is.null(pgap_type$tmRNA),0,pgap_type$tmRNA )
@@ -373,19 +406,15 @@ pgap_tmrna<-ifelse(is.null(pgap_type$tmRNA),0,pgap_type$tmRNA )
 prokka_start_codon_M <-sum(substr(prokka$sequence, 1, 1) %in% "M")
 prokka_start_codon_V <-sum(substr(prokka$sequence, 1, 1) %in% "V")
 prokka_start_codon_L <-sum(substr(prokka$sequence, 1, 1) %in% "L")
-
 bakta_start_codon_M <-sum(substr(bakta$sequence, 1, 1) %in% "M")
 bakta_start_codon_V <-sum(substr(bakta$sequence, 1, 1) %in% "V")
 bakta_start_codon_L <-sum(substr(bakta$sequence, 1, 1) %in% "L")
-
 eggnog_start_codon_M <-sum(substr(eggnog$sequence, 1, 1) %in% "M")
 eggnog_start_codon_V <-sum(substr(eggnog$sequence, 1, 1) %in% "V")
 eggnog_start_codon_L <-sum(substr(eggnog$sequence, 1, 1) %in% "L")
-
 pgap_start_codon_M <-sum(substr(pgap$sequence, 1, 1) %in% "M")
 pgap_start_codon_V <-sum(substr(pgap$sequence, 1, 1) %in% "V")
 pgap_start_codon_L <-sum(substr(pgap$sequence, 1, 1) %in% "L")
-
 prokka_start_codon_NA <-  sum(is.na(prokka$sequence))
 bakta_start_codon_NA <-  sum(is.na(bakta$sequence))
 eggnog_start_codon_NA <-  sum(is.na(eggnog$sequence))
@@ -426,13 +455,10 @@ hyp_eggnog_seq_lenght<-mean(nchar(eggnog$sequence[is.na(eggnog$product)]))
 prokka_bakta_intersect_start<-length(intersect(na.omit(prokka$X4),na.omit(bakta$X4)))
 prokka_eggnog_intersect_start<-length(intersect(na.omit(prokka$X4),na.omit(eggnog$X4)))
 prokka_pgap_intersect_start<-length(intersect(na.omit(prokka$X4),na.omit(pgap$X4)))
-
 bakta_eggnog_intersect_start<-length(intersect(na.omit(bakta$X4),na.omit(eggnog$X4)))
 bakta_pgap_intersect_start<-length(intersect(na.omit(bakta$X4),na.omit(pgap$X4)))
-
 eggnog_bakta_intersect_start<-length(intersect(na.omit(eggnog$X4),na.omit(bakta$X4)))
 eggnog_pgap_intersect_start<-length(intersect(na.omit(eggnog$X4),na.omit(pgap$X4)))
-
 pgap_bakta_intersect_start<-length(intersect(na.omit(pgap$X4),na.omit(bakta$X4)))
 pgap_eggnog_intersect_start<-length(intersect(na.omit(pgap$X4),na.omit(eggnog$X4)))
 
@@ -442,13 +468,10 @@ pgap_eggnog_intersect_start<-length(intersect(na.omit(pgap$X4),na.omit(eggnog$X4
 prokka_bakta_intersect_end<-length(intersect(na.omit(prokka$X5),na.omit(bakta$X5)))
 prokka_eggnog_intersect_end<-length(intersect(na.omit(prokka$X5),na.omit(eggnog$X5)))
 prokka_pgap_intersect_end<-length(intersect(na.omit(prokka$X5),na.omit(pgap$X5)))
-
 bakta_eggnog_intersect_end<-length(intersect(na.omit(bakta$X5),na.omit(eggnog$X5)))
 bakta_pgap_intersect_end<-length(intersect(na.omit(bakta$X5),na.omit(pgap$X5)))
-
 eggnog_bakta_intersect_end<-length(intersect(na.omit(eggnog$X5),na.omit(bakta$X5)))
 eggnog_pgap_intersect_end<-length(intersect(na.omit(eggnog$X5),na.omit(pgap$X5)))
-
 pgap_bakta_intersect_end<-length(intersect(na.omit(pgap$X5),na.omit(bakta$X5)))
 pgap_eggnog_intersect_end<-length(intersect(na.omit(pgap$X5),na.omit(eggnog$X5)))
 
@@ -459,19 +482,16 @@ prokka_go_sum<- sum(prokka$go!=0)
 bakta_go_sum<- sum(bakta$go!=0)
 eggnog_go_sum<- sum(eggnog$go!=0)
 pgap_go_sum<- sum(pgap$go!=0)
-
 ## median GO terms 
 prokka_med_go<- prokka %>% filter(go!=0) %>% select(go) %>% summarize(median(go)) %>%  as.integer()
 bakta_med_go<-bakta %>% filter(go!=0) %>% select(go) %>% summarize(median(go)) %>%  as.integer()
 eggnog_med_go<-eggnog %>% filter(go!=0) %>% select(go) %>% summarize(median(go)) %>%  as.integer()
 pgap_med_go<-pgap %>% filter(go!=0) %>% select(go) %>% summarize(median(go)) %>%  as.integer()
-
 ## GO annotated proteins
 prokka_go_perc<- (sum(prokka$go!=0)/nrow(prokka))*100
 bakta_go_perc<- (sum(bakta$go!=0)/nrow(bakta))*100
 eggnog_go_perc<- (sum(eggnog$go!=0)/nrow(eggnog))*100
 pgap_go_perc<- (sum(pgap$go!=0)/nrow(pgap))*100
-
 ##GO in non hyps 
 prokka_go_nonhyp_perc<-(sum(prokka$go!=0)/(prokka_gene_ct-prokka_hyps))*100
 bakta_go_nonhyp_perc<- (sum(bakta$go!=0)/(bakta_gene_ct- bakta_hyps ))*100
@@ -485,7 +505,6 @@ prokka_cog_sum<- sum(prokka$cog!=0)
 prokka_prodigal_sum<- sum(prokka$prodigal!=0)
 prokka_uniprotkb_sum<- sum(prokka$uniprotkb!=0)
 prokka_ec_sum<- sum(prokka$ec!=0)
-
 ## Percentage of annotated proteins
 prokka_cog_perc<- (sum(prokka$cog!=0)/nrow(prokka))*100
 prokka_prodigal_perc<- (sum(prokka$prodigal!=0)/nrow(prokka))*100
@@ -558,60 +577,46 @@ bakta_uniref50_nonhyp_perc<- (sum(bakta$uniref50!=0)/(bakta_gene_ct-bakta_hyps))
 
 ### EGGNOG
 ## Sum of annotated proteins for each category
-eggnog_ct_em_CAZy_sum <- sum(eggnog$ct_em_CAZy!=0)
-eggnog_ct_em_COG_cat_sum <- sum(eggnog$ct_em_COG_cat!=0)
-eggnog_ct_em_EC_sum <- sum(eggnog$ct_em_EC!=0)
-eggnog_ct_em_KEGG_ko_sum <- sum(eggnog$ct_em_KEGG_ko!=0)
-eggnog_ct_em_BRITE_sum <- sum(eggnog$ct_em_BRITE!=0)
-eggnog_ct_em_BiGG_Reaction_sum <- sum(eggnog$ct_em_BiGG_Reaction!=0)
-eggnog_ct_em_KEGG_rclass_sum <- sum(eggnog$ct_em_KEGG_rclass!=0)
-eggnog_ct_em_KEGG_TC_sum <- sum(eggnog$ct_em_KEGG_TC!=0)
-eggnog_ct_em_KEGG_Pathway_sum <- sum(eggnog$ct_em_KEGG_Pathway!=0)
-eggnog_ct_em_KEGG_Reaction_sum <- sum(eggnog$ct_em_KEGG_Reaction!=0)
-eggnog_ct_em_KEGG_Module_sum <- sum(eggnog$ct_em_KEGG_Module!=0)
-eggnog_ct_em_PFAMs_sum <- sum(eggnog$ct_em_PFAMs!=0)
+eggnog_ct_em_CAZy_sum <- sum(na.omit(eggnog$ct_em_CAZy!=0))
+eggnog_ct_em_COG_cat_sum <- sum(na.omit(eggnog$ct_em_COG_cat!=0))
+eggnog_ct_em_EC_sum <- sum(na.omit(eggnog$ct_em_EC!=0))
+eggnog_ct_em_KEGG_ko_sum <- sum(na.omit(eggnog$ct_em_KEGG_ko!=0))
+eggnog_ct_em_BRITE_sum <- sum(na.omit(eggnog$ct_em_BRITE!=0))
+eggnog_ct_em_BiGG_Reaction_sum <- sum(na.omit(eggnog$ct_em_BiGG_Reaction!=0))
+eggnog_ct_em_KEGG_rclass_sum <- sum(na.omit(eggnog$ct_em_KEGG_rclass!=0))
+eggnog_ct_em_KEGG_TC_sum <- sum(na.omit(eggnog$ct_em_KEGG_TC!=0))
+eggnog_ct_em_KEGG_Pathway_sum <- sum(na.omit(eggnog$ct_em_KEGG_Pathway!=0))
+eggnog_ct_em_KEGG_Reaction_sum <- sum(na.omit(eggnog$ct_em_KEGG_Reaction!=0))
+eggnog_ct_em_KEGG_Module_sum <- sum(na.omit(eggnog$ct_em_KEGG_Module!=0))
+eggnog_ct_em_PFAMs_sum <- sum(na.omit(eggnog$ct_em_PFAMs!=0))
 
 ## Percentage of proteins annotated in each category
-eggnog_ct_em_CAZy_perc <- (sum(eggnog$ct_em_CAZy!=0)/nrow(eggnog))*100
-eggnog_ct_em_COG_cat_perc <- (sum(eggnog$ct_em_COG_cat!=0)/nrow(eggnog))*100
-eggnog_ct_em_EC_perc <- (sum(eggnog$ct_em_EC!=0)/nrow(eggnog))*100
-eggnog_ct_em_KEGG_ko_perc <- (sum(eggnog$ct_em_KEGG_ko!=0)/nrow(eggnog))*100
-eggnog_ct_em_BRITE_perc <- (sum(eggnog$ct_em_BRITE!=0)/nrow(eggnog))*100
-eggnog_ct_em_BiGG_Reaction_perc <- (sum(eggnog$ct_em_BiGG_Reaction!=0)/nrow(eggnog))*100
-eggnog_ct_em_KEGG_rclass_perc <- (sum(eggnog$ct_em_KEGG_rclass!=0)/nrow(eggnog))*100
-eggnog_ct_em_KEGG_TC_perc <- (sum(eggnog$ct_em_KEGG_TC!=0)/nrow(eggnog))*100
-eggnog_ct_em_KEGG_Pathway_perc <- (sum(eggnog$ct_em_KEGG_Pathway!=0)/nrow(eggnog))*100
-eggnog_ct_em_KEGG_Reaction_perc <- (sum(eggnog$ct_em_KEGG_Reaction!=0)/nrow(eggnog))*100
-eggnog_ct_em_KEGG_Module_perc <- (sum(eggnog$ct_em_KEGG_Module!=0)/nrow(eggnog))*100
-eggnog_ct_em_PFAMs_perc <- (sum(eggnog$ct_em_PFAMs!=0)/nrow(eggnog))*100
-## Median terms for each category
-eggnog_med_ct_em_CAZy <- eggnog %>% filter(ct_em_CAZy!=0) %>% select(ct_em_CAZy) %>% summarize(median(ct_em_CAZy)) %>% as.integer()
-eggnog_med_ct_em_COG_cat <- eggnog %>% filter(ct_em_COG_cat!=0) %>% select(ct_em_COG_cat) %>% summarize(median(ct_em_COG_cat)) %>% as.integer()
-eggnog_med_ct_em_EC <- eggnog %>% filter(ct_em_EC!=0) %>% select(ct_em_EC) %>% summarize(median(ct_em_EC)) %>% as.integer()
-eggnog_med_ct_em_KEGG_ko <- eggnog %>% filter(ct_em_KEGG_ko!=0) %>% select(ct_em_KEGG_ko) %>% summarize(median(ct_em_KEGG_ko)) %>% as.integer()
-eggnog_med_ct_em_BRITE <- eggnog %>% filter(ct_em_BRITE!=0) %>% select(ct_em_BRITE) %>% summarize(median(ct_em_BRITE)) %>% as.integer()
-eggnog_med_ct_em_BiGG_Reaction <- eggnog %>% filter(ct_em_BiGG_Reaction!=0) %>% select(ct_em_BiGG_Reaction) %>% summarize(median(ct_em_BiGG_Reaction)) %>% as.integer()
-eggnog_med_ct_em_KEGG_rclass <- eggnog %>% filter(ct_em_KEGG_rclass!=0) %>% select(ct_em_KEGG_rclass) %>% summarize(median(ct_em_KEGG_rclass)) %>% as.integer()
-eggnog_med_ct_em_KEGG_TC <- eggnog %>% filter(ct_em_KEGG_TC!=0) %>% select(ct_em_KEGG_TC) %>% summarize(median(ct_em_KEGG_TC)) %>% as.integer()
-eggnog_med_ct_em_KEGG_Pathway <- eggnog %>% filter(ct_em_KEGG_Pathway!=0) %>% select(ct_em_KEGG_Pathway) %>% summarize(median(ct_em_KEGG_Pathway)) %>% as.integer()
-eggnog_med_ct_em_KEGG_Reaction <- eggnog %>% filter(ct_em_KEGG_Reaction!=0) %>% select(ct_em_KEGG_Reaction) %>% summarize(median(ct_em_KEGG_Reaction)) %>% as.integer()
-eggnog_med_ct_em_KEGG_Module <- eggnog %>% filter(ct_em_KEGG_Module!=0) %>% select(ct_em_KEGG_Module) %>% summarize(median(ct_em_KEGG_Module)) %>% as.integer()
-eggnog_med_ct_em_PFAMs <- eggnog %>% filter(ct_em_PFAMs!=0) %>% select(ct_em_PFAMs) %>% summarize(median(ct_em_PFAMs)) %>% as.integer()
+eggnog_ct_em_CAZy_perc <- (sum(na.omit(eggnog$ct_em_CAZy!=0))/nrow(eggnog))*100
+eggnog_ct_em_COG_cat_perc <- (sum(na.omit(eggnog$ct_em_COG_cat!=0))/nrow(eggnog))*100
+eggnog_ct_em_EC_perc <- (sum(na.omit(eggnog$ct_em_EC!=0))/nrow(eggnog))*100
+eggnog_ct_em_KEGG_ko_perc <- (sum(na.omit(eggnog$ct_em_KEGG_ko!=0))/nrow(eggnog))*100
+eggnog_ct_em_BRITE_perc <- (sum(na.omit(eggnog$ct_em_BRITE!=0))/nrow(eggnog))*100
+eggnog_ct_em_BiGG_Reaction_perc <- (sum(na.omit(eggnog$ct_em_BiGG_Reaction!=0))/nrow(eggnog))*100
+eggnog_ct_em_KEGG_rclass_perc <- (sum(na.omit(eggnog$ct_em_KEGG_rclass!=0))/nrow(eggnog))*100
+eggnog_ct_em_KEGG_TC_perc <- (sum(na.omit(eggnog$ct_em_KEGG_TC!=0))/nrow(eggnog))*100
+eggnog_ct_em_KEGG_Pathway_perc <- (sum(na.omit(eggnog$ct_em_KEGG_Pathway!=0))/nrow(eggnog))*100
+eggnog_ct_em_KEGG_Reaction_perc <- (sum(na.omit(eggnog$ct_em_KEGG_Reaction!=0))/nrow(eggnog))*100
+eggnog_ct_em_KEGG_Module_perc <- (sum(na.omit(eggnog$ct_em_KEGG_Module!=0))/nrow(eggnog))*100
+eggnog_ct_em_PFAMs_perc <- (sum(na.omit(eggnog$ct_em_PFAMs!=0))/nrow(eggnog))*100
 
 ## Percentage of proteins annotated in each category, excluding hypotheticals
-eggnog_ct_em_CAZy_nonhyp_perc <- (sum(eggnog$ct_em_CAZy!=0)/(eggnog_gene_ct-eggnog_hyps))*100
-eggnog_ct_em_COG_cat_nonhyp_perc <- (sum(eggnog$ct_em_COG_cat!=0)/(eggnog_gene_ct-eggnog_hyps))*100
-eggnog_ct_em_EC_nonhyp_perc <- (sum(eggnog$ct_em_EC!=0)/(eggnog_gene_ct-eggnog_hyps))*100
-eggnog_ct_em_KEGG_ko_nonhyp_perc <- (sum(eggnog$ct_em_KEGG_ko!=0)/(eggnog_gene_ct-eggnog_hyps))*100
-eggnog_ct_em_BRITE_nonhyp_perc <- (sum(eggnog$ct_em_BRITE!=0)/(eggnog_gene_ct-eggnog_hyps))*100
-eggnog_ct_em_BiGG_Reaction_nonhyp_perc <- (sum(eggnog$ct_em_BiGG_Reaction!=0)/(eggnog_gene_ct-eggnog_hyps))*100
-eggnog_ct_em_KEGG_rclass_nonhyp_perc <- (sum(eggnog$ct_em_KEGG_rclass!=0)/(eggnog_gene_ct-eggnog_hyps))*100
-eggnog_ct_em_KEGG_TC_nonhyp_perc <- (sum(eggnog$ct_em_KEGG_TC!=0)/(eggnog_gene_ct-eggnog_hyps))*100
-eggnog_ct_em_KEGG_Pathway_nonhyp_perc <- (sum(eggnog$ct_em_KEGG_Pathway!=0)/(eggnog_gene_ct-eggnog_hyps))*100
-eggnog_ct_em_KEGG_Reaction_nonhyp_perc <- (sum(eggnog$ct_em_KEGG_Reaction!=0)/(eggnog_gene_ct-eggnog_hyps))*100
-eggnog_ct_em_KEGG_Module_nonhyp_perc <- (sum(eggnog$ct_em_KEGG_Module!=0)/(eggnog_gene_ct-eggnog_hyps))*100
-eggnog_ct_em_PFAMs_nonhyp_perc <- (sum(eggnog$ct_em_PFAMs!=0)/(eggnog_gene_ct-eggnog_hyps))*100
-
+eggnog_ct_em_CAZy_nonhyp_perc <- (sum(na.omit(eggnog$ct_em_CAZy!=0))/(eggnog_gene_ct-eggnog_hyps))*100
+eggnog_ct_em_COG_cat_nonhyp_perc <- (sum(na.omit(eggnog$ct_em_COG_cat!=0))/(eggnog_gene_ct-eggnog_hyps))*100
+eggnog_ct_em_EC_nonhyp_perc <- (sum(na.omit(eggnog$ct_em_EC!=0))/(eggnog_gene_ct-eggnog_hyps))*100
+eggnog_ct_em_KEGG_ko_nonhyp_perc <- (sum(na.omit(eggnog$ct_em_KEGG_ko!=0))/(eggnog_gene_ct-eggnog_hyps))*100
+eggnog_ct_em_BRITE_nonhyp_perc <- (sum(na.omit(eggnog$ct_em_BRITE!=0))/(eggnog_gene_ct-eggnog_hyps))*100
+eggnog_ct_em_BiGG_Reaction_nonhyp_perc <- (sum(na.omit(eggnog$ct_em_BiGG_Reaction!=0))/(eggnog_gene_ct-eggnog_hyps))*100
+eggnog_ct_em_KEGG_rclass_nonhyp_perc <- (sum(na.omit(eggnog$ct_em_KEGG_rclass!=0))/(eggnog_gene_ct-eggnog_hyps))*100
+eggnog_ct_em_KEGG_TC_nonhyp_perc <- (sum(na.omit(eggnog$ct_em_KEGG_TC!=0))/(eggnog_gene_ct-eggnog_hyps))*100
+eggnog_ct_em_KEGG_Pathway_nonhyp_perc <- (sum(na.omit(eggnog$ct_em_KEGG_Pathway!=0))/(eggnog_gene_ct-eggnog_hyps))*100
+eggnog_ct_em_KEGG_Reaction_nonhyp_perc <- (sum(na.omit(eggnog$ct_em_KEGG_Reaction!=0))/(eggnog_gene_ct-eggnog_hyps))*100
+eggnog_ct_em_KEGG_Module_nonhyp_perc <- (sum(na.omit(eggnog$ct_em_KEGG_Module!=0))/(eggnog_gene_ct-eggnog_hyps))*100
+eggnog_ct_em_PFAMs_nonhyp_perc <- (sum(na.omit(eggnog$ct_em_PFAMs!=0))/(eggnog_gene_ct-eggnog_hyps))*100
 
 ####PGAP
 ## Sum of annotated proteins for each category
@@ -619,19 +624,16 @@ pgap_refseq_sum<- sum(pgap$refseq!=0)
 pgap_go_fun_sum<- sum(pgap$go_fun!=0)
 pgap_go_pro_sum<- sum(pgap$go_pro!=0)
 pgap_go_comp_sum<- sum(pgap$go_comp!=0)
-
 ## Percentage of annotated proteins
 pgap_refseq_perc<- (sum(pgap$refseq!=0)/nrow(pgap))*100
 pgap_go_fun_perc<- (sum(pgap$go_fun!=0)/nrow(pgap))*100
 pgap_go_pro_perc<- (sum(pgap$go_pro!=0)/nrow(pgap))*100
 pgap_go_comp_perc<- (sum(pgap$go_comp!=0)/nrow(pgap))*100
-
 ## Percentage of annotated proteins excluding hypotheticals
 pgap_refseq_nonhyp_perc<-(sum(pgap$refseq!=0)/(pgap_gene_ct-pgap_hyps))*100
 pgap_go_fun_nonhyp_perc<- (sum(pgap$go_fun!=0)/(pgap_gene_ct- pgap_hyps ))*100
 pgap_go_pro_nonhyp_perc<- (sum(pgap$go_pro!=0)/(pgap_gene_ct- pgap_hyps))*100
 pgap_go_comp_nonhyp_perc<- (sum(pgap$go_comp!=0)/(pgap_gene_ct-pgap_hyps))*100
-
 ## Median terms for each category
 pgap_med_refseq<- pgap %>% filter(refseq!=0) %>% select(refseq) %>% summarize(median(refseq)) %>%  as.integer()
 pgap_med_go_fun<-pgap %>% filter(go_fun!=0) %>% select(go_fun) %>% summarize(median(go_fun)) %>%  as.integer()
@@ -801,27 +803,45 @@ summary_df<- data.frame(id, fasta_type, prokka_gene_ct,bakta_gene_ct,pgap_gene_c
   EggNOG_Bacteria_prot_un_fun=eggnog$ct_Bacteria_prot_un_fun,
   EggNOG_Prot_un_fun=eggnog$ct_Prot_un_fun,
   EggNOG_Domain_un_fun=eggnog$ct_Domain_un_fun,
-  EggNOG_Med_CAZy = eggnog_med_ct_em_CAZy,
-  EggNOG_Med_COG_Cat = eggnog_med_ct_em_COG_cat,
-  EggNOG_Med_EC = eggnog_med_ct_em_EC,
-  EggNOG_Med_KEGG_ko = eggnog_med_ct_em_KEGG_ko,
-  EggNOG_Med_BRITE = eggnog_med_ct_em_BRITE,
-  EggNOG_Med_BiGG_Reaction = eggnog_med_ct_em_BiGG_Reaction,
-  EggNOG_Med_KEGG_rclass = eggnog_med_ct_em_KEGG_rclass,
-  EggNOG_Med_KEGG_TC = eggnog_med_ct_em_KEGG_TC,
-  EggNOG_Med_KEGG_Pathway = eggnog_med_ct_em_KEGG_Pathway,
-  EggNOG_Med_KEGG_Reaction = eggnog_med_ct_em_KEGG_Reaction,
-  EggNOG_Med_KEGG_Module = eggnog_med_ct_em_KEGG_Module,
-  EggNOG_Med_PFAMs = eggnog_med_ct_em_PFAMs,
   PGAP_Med_RefSeq = pgap_med_refseq,
   PGAP_Med_GO_Fun = pgap_med_go_fun,
   PGAP_Med_GO_Pro = pgap_med_go_pro,
-  PGAP_Med_GO_Comp = pgap_med_go_comp)
+  PGAP_Med_GO_Comp = pgap_med_go_comp,
+  Prokka_ct_Domain_un_fun= sum(prokka$ct_Domain_un_fun),
+  Bakta_ct_Domain_un_fun= sum(bakta$ct_Domain_un_fun),
+  Eggnog_ct_Domain_un_fun= sum(eggnog$ct_Domain_un_fun),
+  PGAP_ct_Domain_un_fun= sum(pgap$ct_Domain_un_fun),
+prokka_total_coding_len = prokka_total_coding_len,
+  bakta_total_coding_len = bakta_total_coding_len,
+  eggnog_total_coding_len = eggnog_total_coding_len,
+  pgap_total_coding_len = pgap_total_coding_len,
+  prokka_fullyanno_coding_len = prokka_fullyanno_coding_len,
+  bakta_fullyanno_coding_len = bakta_fullyanno_coding_len,
+  eggnog_fullyanno_coding_len = eggnog_fullyanno_coding_len,
+  pgap_fullyanno_coding_len = pgap_fullyanno_coding_len,
+  prokka_otheranno_coding_len = prokka_otheranno_coding_len,
+  bakta_otheranno_coding_len = bakta_otheranno_coding_len,
+  eggnog_otheranno_coding_len = eggnog_otheranno_coding_len,
+  pgap_otheranno_coding_len = pgap_otheranno_coding_len,
+  prokka_total_coding_len_hyp = prokka_total_coding_len_hyp,
+  bakta_total_coding_len_hyp = bakta_total_coding_len_hyp,
+  eggnog_total_coding_len_hyp = eggnog_total_coding_len_hyp,
+  pgap_total_coding_len_hyp = pgap_total_coding_len_hyp,
+  prokka_perc_hyps=prokka_perc_hyps,
+  prokka_CDS=prokka_CDS,
+  prokka_rrna=prokka_rrna,
+  prokka_rrna=prokka_rrna,
+  prokka_trna=prokka_trna,
+  prokka_tmrna=prokka_tmrna,
+  named_prokka_seq_lenght=named_prokka_seq_lenght,
+  hyp_prokka_seq_lenght = hyp_prokka_seq_lenght
+  )
 
-rest_names <- colnames(summary_df[,93:224])
+rest_names <- colnames(summary_df[,93:ncol(summary_df)])
 
 colnames(summary_df) <- c("id","type",col_labels_genecount,col_labels_hyps,col_labels_perc_hyps,col_labels_CDS,col_labels_rrna,col_labels_trna,col_labels_tmrna,
                                  col_labels_startcodons,col_labels_prot_lenght,col_labels_named_prot_lenght,col_labels_hyp_prot_lenght,col_labels_start_end_comps,
                                  col_labels_go_sum,col_labels_go_median,col_labels_go_perc,col_labels_go_nonhyp_perc,col_labels_phage_cont,rest_names)
+summary_df <- summary_df[1,]
 
 write_csv(summary_df,"comparison.csv")
