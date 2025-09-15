@@ -1,7 +1,7 @@
 # Prokaryotic annotation tools benchmarking 
 This repository contains the code used in the following work:
-
-    TODO  [Insert publication link or details here]
+Large-scale Evaluation of Prokaryotic Annotation Tools Across Thousands of Species
+https://doi.org/10.21203/rs.3.rs-7317585/v1
     
 ## Short Description 
 This Nextflow workflow was developed to benchmark the performance of four open-source prokaryotic genome annotation tools: Prokka, Bakta, EggNOG-mapper, and PGAP. We evaluated these tools on 180,504 diverse genomes to provide guidance on tool selection based on genome characteristics and various investigated metrics. For furter details please look at the publication.
