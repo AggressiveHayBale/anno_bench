@@ -1,6 +1,6 @@
 process analysis {
     label 'r' 
-    storeDir "${params.tmp_storage}/${id}/${fasta_type}/R_analysis/"
+    storeDir "${params.tmp_storage}/updated_prokka/${fasta_type}/r_analysis_updated_prokka/"
     maxForks 100
     input:
         //tuple val(id), path(prokka_faa), path(prokka_gff), path(bakta_faa), path(bakta_gff), path(eggnog_faa), path(eggnog_gff), path(pgap_faa), path(pgap_gff)

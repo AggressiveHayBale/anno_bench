@@ -1,8 +1,8 @@
 process prokka {
     label 'prokka'
-    storeDir "${params.tmp_storage}/${type}/${name}/prokka/"
-    maxForks 100
-    publishDir "${params.output}/${name}/prokka", mode: 'copy'
+    storeDir "${params.tmp_storage}/updated_prokka/${type}/${name}"
+    maxForks 1000
+    publishDir "${params.output}/${name}/prokka_updated", mode: 'copy'
     input: 
         tuple val(name), val(species), path(fasta), val(type)
     output: 

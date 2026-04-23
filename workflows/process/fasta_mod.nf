@@ -1,12 +1,18 @@
 process fasta_mod {
     label 'ubuntu'
-    storeDir "${params.tmp_storage}/${name}/fasta_mod/"
+    //for anno_bench_tmp 
+    //For the new ones
+ //   storeDir "${params.tmp_storage}${name}/fasta/"
+    //Dunno what this one is
+   // storeDir "${params.tmp_storage}/${name}/fasta_mod/"
+    // Old one for anno_bench_tmp
+    storeDir "${params.tmp_storage}/fasta/${name}"
     maxForks 100
     publishDir "${params.output}/${name}/fasta", mode: 'copy'
-    storeDir "${params.tmp_storage}${name}/fasta/"
     input: 
     // [GCA000012145, Rickettsia felis, cont_noise/anno_bench/bin/GCA_000012145.1.fna, 0.005, 0.01, 0.02]
-        tuple val(name), val(species), path(dir), val(noise), val(noise2), val(noise3)
+    // path(dir) to val(dir) to ignore the need for local storing the fastas and use GCS instead
+        tuple val(name), val(species), val(dir), val(noise), val(noise2), val(noise3)
 
     output: 
         // tuple val(name), val(species), path("original_${name}.fasta"), val("original"), emit: original

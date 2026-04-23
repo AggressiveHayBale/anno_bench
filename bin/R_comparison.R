@@ -188,6 +188,7 @@ em_Preferred_name <- str_extract(annotation_merged$X9,pattern = "em_Preferred_na
 em_Preferred_name <- gsub("em_Preferred_name=", "", em_Preferred_name)
 em_Preferred_name <- gsub(";", "", em_Preferred_name)
 em_Preferred_name[em_Preferred_name==""] <- NA
+annotation_merged$product <- em_Preferred_name
 
 em_CAZy <- str_extract(annotation_merged$X9,pattern = "em_CAZy=(.*?;)")
 em_CAZy <- gsub("em_CAZy=", "", em_CAZy)
@@ -360,12 +361,12 @@ bakta_rrna<-ifelse(is.null(bakta_type$rRNA),0,bakta_type$rRNA )
 pgap_rrna<- ifelse(is.null(pgap_type$rRNA),0,pgap_type$rRNA )
 
 
-prokka_trna<-ifelse(is.null(prokka_type$tRNA),0,pgap_type$tRNA )
+prokka_trna<-ifelse(is.null(prokka_type$tRNA),0,prokka_type$tRNA )
 bakta_trna<-ifelse(is.null(bakta_type$tRNA),0,bakta_type$tRNA )
 pgap_trna<-ifelse(is.null(pgap_type$tRNA),0,pgap_type$tRNA )
 
 
-prokka_tmrna<-ifelse(is.null(prokka_type$tmRNA),0,pgap_type$tmRNA )
+prokka_tmrna<-ifelse(is.null(prokka_type$tmRNA),0,prokka_type$tmRNA )
 bakta_tmrna<-ifelse(is.null(bakta_type$tmRNA),0,bakta_type$tmRNA )
 pgap_tmrna<-ifelse(is.null(pgap_type$tmRNA),0,pgap_type$tmRNA )
 
@@ -798,9 +799,9 @@ summary_df<- data.frame(id, fasta_type, prokka_gene_ct,bakta_gene_ct,pgap_gene_c
   Bakta_Med_UniRef100 = bakta_med_uniref100,
   Bakta_Med_UniRef90 = bakta_med_uniref90,
   Bakta_Med_UniRef50 = bakta_med_uniref50,
-  EggNOG_Bacteria_prot_un_fun=eggnog$ct_Bacteria_prot_un_fun,
-  EggNOG_Prot_un_fun=eggnog$ct_Prot_un_fun,
-  EggNOG_Domain_un_fun=eggnog$ct_Domain_un_fun,
+  EggNOG_Bacteria_prot_un_fun=sum(eggnog$ct_Bacteria_prot_un_fun),
+  EggNOG_Prot_un_fun=sum(eggnog$ct_Prot_un_fun),
+  EggNOG_Domain_un_fun=sum(eggnog$ct_Domain_un_fun),
   EggNOG_Med_CAZy = eggnog_med_ct_em_CAZy,
   EggNOG_Med_COG_Cat = eggnog_med_ct_em_COG_cat,
   EggNOG_Med_EC = eggnog_med_ct_em_EC,
